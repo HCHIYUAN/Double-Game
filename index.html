@@ -1,32 +1,31 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <!-- 1. 確保 charset 是第一個標籤，解決亂碼問題 -->
+    <!-- 1. 這是解決亂碼最重要的標籤，必須放在第一行 -->
     <meta charset="UTF-8">
+    
+    <!-- 2. 設定視窗適配手機螢幕 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
     <title>高爾夫計分 Pro</title>
     
-    <!-- PWA 設定 (讓手機可以加入主畫面) -->
+    <!-- PWA 設定 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#059669">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3133/3133158.png">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3133/3133158.png">
 
-    <!-- 載入 React, ReactDOM, Babel, Tailwind -->
+    <!-- 載入 React 核心 -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <!-- Babel 用於解析 JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
-        /* 禁止選取文字，讓操作更像 APP */
         body { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-        /* 隱藏捲軸但保留功能 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* iPhone 安全區域設定 */
         body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
     </style>
 </head>
@@ -36,7 +35,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- 內建 SVG Icons (避免 import 錯誤) ---
+        // --- Icons ---
         const IconBase = ({ d, ...props }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
                 {d}
