@@ -13,8 +13,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#059669">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3133/3133158.png">
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3133/3133158.png">
+    <!-- 修改這裡：換成高爾夫球在球梯上的圖示，辨識度更高 -->
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/606/606034.png">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/606/606034.png">
 
     <!-- 載入 React 核心 -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -55,6 +56,7 @@
         const Plus = (p) => <IconBase {...p} d={<><path d="M5 12h14"/><path d="M12 5v14"/></>} />;
         const Trash2 = (p) => <IconBase {...p} d={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></>} />;
         const Dice = (p) => <IconBase {...p} d={<><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 8h.01"/><path d="M8 8h.01"/><path d="M8 16h.01"/><path d="M16 16h.01"/><path d="M12 12h.01"/></>} />;
+        const RotateCcw = (p) => <IconBase {...p} d={<><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></>} />;
 
         // --- 資料設定 ---
         const DEFAULT_COURSE_PAR = {
@@ -235,6 +237,15 @@
                 localStorage.setItem('my_golf_courses', JSON.stringify(updated));
                 setCourseList([...DEFAULT_COURSES, ...updated.map(c => ({ id: c.id, name: c.name }))]);
                 if (courseId === id) setCourseId('guanyinshan');
+            };
+
+            const resetGame = () => {
+                if (!confirm('確定要開始新的一局嗎？\n\n這將會清除目前的桿數與點數紀錄，但會保留球員名字與設定。')) return;
+                setGolfScores(Array(18).fill([null, null, null, null]));
+                setPointScores(Array(18).fill(['blank', 'blank', 'blank', 'blank']));
+                setHoleMultipliers(Array(18).fill(1));
+                setCurrentHoleIdx(0);
+                setShowSettings(false);
             };
 
             const { parList, holeNumbers } = useMemo(() => {
@@ -494,7 +505,11 @@
                                 </div>
                                 <div className="space-y-4 pt-4 border-t"><label className="text-sm font-bold text-gray-700 block">團體賽每分金額</label><div className="flex items-center gap-2"><DollarSign /><input type="number" value={teamStake} onChange={(e) => setTeamStake(Number(e.target.value))} className="border rounded px-3 py-2 w-full"/></div></div>
                                 <div className="space-y-4 pt-4 border-t"><label className="text-sm font-bold text-gray-700 block">金銀銅鐵點數設定</label><div className="grid grid-cols-3 gap-2 text-sm">{Object.keys(pointValues).map(k => <div key={k} className="flex flex-col"><span className="text-gray-500 uppercase text-xs">{k}</span><input type="number" value={pointValues[k]} onChange={(e) => setPointValues({...pointValues, [k]: Number(e.target.value)})} className="border rounded px-2 py-1"/></div>)}</div></div>
-                                <button onClick={() => setShowSettings(false)} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700">完成設定</button>
+                                
+                                <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
+                                    <button onClick={() => setShowSettings(false)} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 shadow">完成設定</button>
+                                    <button onClick={resetGame} className="w-full bg-white text-red-500 border border-red-200 py-3 rounded-xl font-bold hover:bg-red-50 flex items-center justify-center gap-2"><RotateCcw size={18} /> 開始新的一局 (清除成績)</button>
+                                </div>
                             </div>
                         ) : (
                             <CourseEditor onSave={(data) => { saveCustomCourse(data); setShowCourseEditor(false); }} onCancel={() => setShowCourseEditor(false)} />
