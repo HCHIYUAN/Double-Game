@@ -1,667 +1,708 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>高爾夫球點數遊戲整合版</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root { color-scheme: light dark; }
-        html, body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans TC', Arial, sans-serif; }
-        .cell-input { width: 4.5rem; border-radius: 0.5rem; border: 1px solid #d1d5db; padding: 0.25rem; text-align: center; box-shadow: 0 1px 1px rgba(0,0,0,.02); outline: none; }
-        .cell-input:focus { outline: none; box-shadow: 0 0 0 2px rgba(16,185,129,.35); }
-        .cell-select { border-radius: 0.5rem; border: 1px solid #d1d5db; padding: 0.25rem; text-align: center; font-size: .875rem; box-shadow: 0 1px 1px rgba(0,0,0,.02); }
-        .cell-select:focus { outline: none; box-shadow: 0 0 0 2px rgba(16,185,129,.35); }
-        .soft-card { background: #fff; border-radius: 1rem; box-shadow: 0 10px 30px rgba(0,0,0,.06); }
-        .score-cell { padding: 8px 6px; font-size: 0.875rem; line-height: 1.25rem; color: #4b5563; }
-        .hidden { display: none; }
-    </style>
-</head>
-<body class="bg-gray-100 p-4">
-    <div class="flex justify-center p-4">
-        <button id="toggleGolf" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded mr-2">高爾夫球計分器</button>
-        <button id="togglePoint" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded">金銀銅鐵計分器</button>
-    </div>
+import React, { useState, useEffect, useMemo } from 'react';
+import { Trophy, ChevronLeft, ChevronRight, Settings, Grid, List, Users, Medal, DollarSign, Calculator, Plus, Trash2, Save } from 'lucide-react';
 
-    <!-- 高爾夫球計分器 -->
-    <div id="golfCounter" class="container mx-auto max-w-5xl">
-        <header class="soft-card p-6 sticky top-4 z-10">
-            <h1 class="text-3xl font-bold text-center text-gray-800">高爾夫球計分器</h1>
-            <p id="golfGameDescription" class="mt-2 text-center text-gray-600">依你提供的點數模式規則（Par/Bogey/Birdie/Eagle/加罰/Golden Ball）自動計分。</p>
-            <section class="mt-6 grid gap-3 md:grid-cols-2">
-                <div class="flex items-center justify-center gap-4 bg-gray-50 p-2 rounded-xl">
-                    <label for="golfNumPlayers" class="font-medium text-gray-700">球員人數</label>
-                    <select id="golfNumPlayers" class="cell-select w-20">
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4" selected>4</option>
-                    </select>
-                    <label for="golfGoldenBallHole" class="font-medium text-gray-700">Golden Ball</label>
-                    <select id="golfGoldenBallHole" class="cell-select w-28"></select>
-                </div>
-                <div class="flex items-center justify-center gap-3 bg-gray-50 p-2 rounded-xl">
-                    <label for="golfCourseSelect" class="font-medium text-gray-700">球場</label>
-                    <select id="golfCourseSelect" class="cell-select w-44">
-                        <option value="guanyinshan" selected>觀音山球場</option>
-                        <option value="nanyi">南一球場</option>
-                        <option value="xinyi">信誼球場</option>
-                        <option value="dagangshan">大崗山球場</option>
-                        <option value="sinhwa">台南新化球場</option>
-                        <option value="jianan">嘉南球場</option>
-                        <option value="zhongluhe">棕梠湖球場</option>
-                    </select>
-                </div>
-            </section>
-            <section id="golfInOutDiv" class="mt-4 flex items-center justify-center gap-3 bg-gray-50 p-2 rounded-xl">
-                <div class="flex items-center gap-2">
-                    <label for="golfOutNineSelect" class="font-medium text-gray-700">1–9洞</label>
-                    <select id="golfOutNineSelect" class="cell-select w-24">
-                        <option value="out">OUT</option>
-                        <option value="in">IN</option>
-                    </select>
-                </div>
-                <div class="flex items-center gap-2">
-                    <label for="golfInNineSelect" class="font-medium text-gray-700">10–18洞</label>
-                    <select id="golfInNineSelect" class="cell-select w-24">
-                        <option value="in">IN</option>
-                        <option value="out">OUT</option>
-                    </select>
-                </div>
-            </section>
-            <section id="golfPlayerNames" class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <label class="flex flex-col text-sm">
-                    <span class="text-gray-700 mb-1">球員 1</span>
-                    <input id="golfPlayer1Name" type="text" value="球員 A" class="cell-input">
-                </label>
-                <label class="flex flex-col text-sm">
-                    <span class="text-gray-700 mb-1">球員 2</span>
-                    <input id="golfPlayer2Name" type="text" value="球員 B" class="cell-input">
-                </label>
-                <label class="flex flex-col text-sm">
-                    <span class="text-gray-700 mb-1">球員 3</span>
-                    <input id="golfPlayer3Name" type="text" value="球員 C" class="cell-input">
-                </label>
-                <label class="flex flex-col text-sm">
-                    <span class="text-gray-700 mb-1">球員 4</span>
-                    <input id="golfPlayer4Name" type="text" value="球員 D" class="cell-input">
-                </label>
-            </section>
-        </header>
+// --- 預設球場資料 ---
 
-        <section class="soft-card mt-6 overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50 text-xs font-semibold uppercase text-gray-600">
-                    <tr>
-                        <th class="px-3 py-3 text-left w-20">洞號</th>
-                        <th id="golfParHeader" class="px-3 py-3 text-left w-20">標準桿</th>
-                        <th id="golf-player-score-header-1" class="px-3 py-3 text-left">球員 A</th>
-                        <th id="golf-player-score-header-2" class="px-3 py-3 text-left">球員 B</th>
-                        <th id="golf-player-score-header-3" class="px-3 py-3 text-left">球員 C</th>
-                        <th id="golf-player-score-header-4" class="px-3 py-3 text-left">球員 D</th>
-                        <th id="golf-player-points-header-1" class="px-3 py-3 text-left">A 點數</th>
-                        <th id="golf-player-points-header-2" class="px-3 py-3 text-left">B 點數</th>
-                        <th id="golf-player-points-header-3" class="px-3 py-3 text-left">C 點數</th>
-                        <th id="golf-player-points-header-4" class="px-3 py-3 text-left">D 點數</th>
-                    </tr>
-                </thead>
-                <tbody id="golfScoreTableBody" class="bg-white divide-y divide-gray-100"></tbody>
-            </table>
-        </section>
+const DEFAULT_COURSE_PAR = {
+  guanyinshan: { out: [5,4,4,5,4,4,4,3,3], in: [4,4,3,4,5,4,3,5,4] },
+  nanyi: { out: [5,4,3,4,4,4,4,3,5], in: [4,5,4,3,4,3,4,5,4] },
+  xinyi: { out: [4,4,3,5,4,3,4,5,4], in: [4,4,4,3,4,5,4,3,5] },
+  dagangshan: { out: [4,5,3,4,5,4,4,3,4], in: [4,4,4,3,5,4,3,5,4] },
+  sinhwa: { out: [5,4,3,4,3,5,4,4,4], in: [4,4,4,3,4,5,4,3,5] },
+  jianan: { out: [4,5,4,4,3,4,4,3,5], in: [4,4,3,4,3,5,4,5,4] },
+  zhongluhe: { out: [5,4,3,4,4,3,4,5,4], in: [4,4,4,5,3,4,4,3,5] },
+  tashee: { out: [5,3,4,4,5,4,4,4,3], in: [4,4,3,4,5,4,4,5,3] }, // 大溪: 東區 OUT, 西區 IN
+};
 
-        <section class="soft-card mt-6 overflow-x-auto">
-            <h2 class="text-2xl font-bold text-center text-gray-800 py-4">最終結果</h2>
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50 text-xs font-semibold uppercase text-gray-600">
-                    <tr>
-                        <th class="px-3 py-3 text-left">球員</th>
-                        <th class="px-3 py-3 text-left">總桿數</th>
-                        <th class="px-3 py-3 text-left">總點數</th>
-                        <th class="px-3 py-3 text-left">排名</th>
-                    </tr>
-                </thead>
-                <tbody id="golfTotalTableBody" class="bg-white divide-y divide-gray-100"></tbody>
-            </table>
-        </section>
-    </div>
+const DEFAULT_COURSES = [
+  { id: 'guanyinshan', name: '觀音山球場' },
+  { id: 'nanyi', name: '南一球場' },
+  { id: 'xinyi', name: '信誼球場' },
+  { id: 'dagangshan', name: '大崗山球場' },
+  { id: 'sinhwa', name: '台南新化球場' },
+  { id: 'jianan', name: '嘉南球場' },
+  { id: 'zhongluhe', name: '棕梠湖球場' },
+  { id: 'tashee', name: '大溪球場 (東/西)' },
+];
 
-    <!-- 金銀銅鐵計分器 -->
-    <div id="pointCounter" class="container mx-auto max-w-4xl p-4 hidden">
-        <div class="bg-white rounded-3xl shadow-xl p-8 w-full border border-gray-200">
-            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">金銀銅鐵計分器</h1>
-            <div class="bg-gray-50 p-6 rounded-2xl mb-6 border border-gray-200">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">遊戲設定</h2>
-                <div id="pointPlayerNameInputs" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
-            </div>
-            <div id="pointSettingsSection" class="bg-gray-50 p-6 rounded-2xl mb-6 border border-gray-200">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">分數設定</h2>
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div class="flex flex-col">
-                        <label for="point-cut" class="text-sm font-medium text-gray-600">切</label>
-                        <input type="number" id="point-cut" value="150" min="10" max="500" class="mt-1 px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm text-center">
-                    </div>
-                    <div class="flex flex-col">
-                        <label for="point-gold" class="text-sm font-medium text-gray-600">金</label>
-                        <input type="number" id="point-gold" value="100" min="10" max="500" class="mt-1 px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm text-center">
-                    </div>
-                    <div class="flex flex-col">
-                        <label for="point-silver" class="text-sm font-medium text-gray-600">銀</label>
-                        <input type="number" id="point-silver" value="50" min="10" max="500" class="mt-1 px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm text-center">
-                    </div>
-                    <div class="flex flex-col">
-                        <label for="point-bronze" class="text-sm font-medium text-gray-600">銅</label>
-                        <input type="number" id="point-bronze" value="30" min="10" max="500" class="mt-1 px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm text-center">
-                    </div>
-                    <div class="flex flex-col">
-                        <label for="point-iron" class="text-sm font-medium text-gray-600">鐵</label>
-                        <input type="number" id="point-iron" value="20" min="10" max="500" class="mt-1 px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm text-center">
-                    </div>
-                </div>
-            </div>
-            <div id="pointGameInterface" class="bg-gray-50 p-6 rounded-2xl border border-gray-200">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">計分板</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">洞數</th>
-                                <th id="point-player-header-0" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">玩家1</th>
-                                <th id="point-player-header-1" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">玩家2</th>
-                                <th id="point-player-header-2" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">玩家3</th>
-                                <th id="point-player-header-3" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">玩家4</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pointScoreTableBody" class="bg-white divide-y divide-gray-200"></tbody>
-                        <tfoot class="bg-gray-100">
-                            <tr>
-                                <td class="px-3 py-3 text-left text-sm font-medium text-gray-900">總計</td>
-                                <td id="point-total-score-0" class="px-3 py-3 text-left text-sm font-bold text-gray-900">0</td>
-                                <td id="point-total-score-1" class="px-3 py-3 text-left text-sm font-bold text-gray-900">0</td>
-                                <td id="point-total-score-2" class="px-3 py-3 text-left text-sm font-bold text-gray-900">0</td>
-                                <td id="point-total-score-3" class="px-3 py-3 text-left text-sm font-bold text-gray-900">0</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
+const POINT_TYPES = [
+  { id: 'blank', label: '-', val: 0, color: 'bg-gray-100 text-gray-400' },
+  { id: 'cut', label: '切', val: 150, color: 'bg-red-100 text-red-700 border-red-300' },
+  { id: 'gold', label: '金', val: 100, color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
+  { id: 'silver', label: '銀', val: 50, color: 'bg-slate-200 text-slate-700 border-slate-400' },
+  { id: 'bronze', label: '銅', val: 30, color: 'bg-orange-100 text-orange-800 border-orange-300' },
+  { id: 'iron', label: '鐵', val: 20, color: 'bg-stone-200 text-stone-600 border-stone-400' },
+  { id: 'none', label: '無', val: 0, color: 'bg-gray-200 text-gray-500' },
+];
+
+// --- 核心邏輯函式 ---
+
+function calcPairPointsByRules(a, b, par) {
+  if (a === null || b === null || a === '' || b === '') return 0;
+  const aRel = a - par;
+  const bRel = b - par;
+
+  let points = 0;
+  if (aRel === 0 && bRel > 0) points = 2;
+  if (aRel > 0 && bRel === 0) points = -2;
+  if (aRel > 0 && bRel > 0) {
+    if (a < b) points = 1;
+    else if (b < a) points = -1;
+  }
+  if (aRel < 0 && bRel >= 0) {
+    if (aRel === -1) points = (bRel === 0) ? 1 : 3;
+    else if (aRel <= -2) points = (bRel === 0) ? 3 : 5;
+  }
+  if (bRel < 0 && aRel >= 0) {
+    if (bRel === -1) points = -((aRel === 0) ? 1 : 3);
+    else if (bRel <= -2) points = -((aRel === 0) ? 3 : 5);
+  }
+  if (aRel < 0 && bRel < 0) {
+    if (a < b) points = (aRel <= -2) ? 3 : 1;
+    else if (b < a) points = -((bRel <= -2) ? 3 : 1);
+  }
+  if ((par === 4 || par === 5) && a >= par * 2 && a > b) points -= 1;
+  if ((par === 4 || par === 5) && b >= par * 2 && b > a) points += 1;
+  return points;
+}
+
+function calcTeamMatch(scores, par, multiplier) {
+  if (scores.some(s => !s)) return { diff: 0, abScore: 0, cdScore: 0, msg: '等待輸入...' };
+  const s = scores.map(Number);
+  let abRaw = s[0] < s[1] ? s[0] * 10 + s[1] : s[1] * 10 + s[0];
+  let cdRaw = s[2] < s[3] ? s[2] * 10 + s[3] : s[3] * 10 + s[2];
+  const getStatus = (score) => {
+    if (score <= par - 2) return 'eagle';
+    if (score === par - 1) return 'birdie';
+    return 'normal';
+  };
+  const abStatuses = [getStatus(s[0]), getStatus(s[1])];
+  const cdStatuses = [getStatus(s[2]), getStatus(s[3])];
+  const abHasEagle = abStatuses.includes('eagle');
+  const abHasBirdie = abStatuses.includes('birdie');
+  const cdHasEagle = cdStatuses.includes('eagle');
+  const cdHasBirdie = cdStatuses.includes('birdie');
+  let abFinal = abRaw;
+  let cdFinal = cdRaw;
+  let finalMultiplier = multiplier;
+  let msgParts = [];
+
+  if (abHasEagle) {
+    cdFinal = parseInt(String(cdRaw).split('').reverse().join(''), 10);
+    finalMultiplier *= 2;
+    msgParts.push("AB Eagle! CD互換且加倍");
+  } else if (abHasBirdie) {
+    cdFinal = parseInt(String(cdRaw).split('').reverse().join(''), 10);
+    msgParts.push("AB Birdie! CD互換");
+  }
+
+  if (cdHasEagle) {
+    abFinal = parseInt(String(abRaw).split('').reverse().join(''), 10);
+    finalMultiplier *= 2;
+    msgParts.push("CD Eagle! AB互換且加倍");
+  } else if (cdHasBirdie) {
+    abFinal = parseInt(String(abRaw).split('').reverse().join(''), 10);
+    msgParts.push("CD Birdie! AB互換");
+  }
+
+  const diff = (cdFinal - abFinal) * finalMultiplier;
+  return {
+    diff,
+    abScore: abFinal,
+    cdScore: cdFinal,
+    abRaw,
+    cdRaw,
+    finalMultiplier,
+    msg: msgParts.join(' | ')
+  };
+}
+
+// --- UI 元件 ---
+
+const Modal = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
+          <h3 className="font-bold text-lg text-gray-800">{title}</h3>
+          <button onClick={onClose} className="p-2 text-gray-500 hover:text-gray-800">✕</button>
         </div>
+        <div className="p-4">{children}</div>
+      </div>
     </div>
+  );
+};
 
-    <!-- 整合後的 JavaScript -->
-    <script>
-        // 高爾夫球計分器
-        const golfApp = (function () {
-            const qs = (sel, el = document) => el.querySelector(sel);
-            const qsa = (sel, el = document) => Array.from(el.querySelectorAll(sel));
-            const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
-            const toInt = (v) => (v === '' || v === null || Number.isNaN(Number(v)) ? null : parseInt(v, 10));
-            const debounce = (fn, wait = 120) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); }; };
+// --- 主程式 ---
 
-            const el = {
-                numPlayers: qs('#golfNumPlayers'),
-                goldenBallHole: qs('#golfGoldenBallHole'),
-                courseSelect: qs('#golfCourseSelect'),
-                outNine: qs('#golfOutNineSelect'),
-                inNine: qs('#golfInNineSelect'),
-                parHeader: qs('#golfParHeader'),
-                scoreBody: qs('#golfScoreTableBody'),
-                totalBody: qs('#golfTotalTableBody'),
-                playerScoreHeaders: [1,2,3,4].map(i => qs(`#golf-player-score-header-${i}`)),
-                playerPointHeaders: [1,2,3,4].map(i => qs(`#golf-player-points-header-${i}`)),
-                playerNameInputs: [1,2,3,4].map(i => qs(`#golfPlayer${i}Name`)),
-                gameDesc: qs('#golfGameDescription'),
-            };
+export default function GolfApp() {
+  const [mode, setMode] = useState('golf'); 
+  const [currentHoleIdx, setCurrentHoleIdx] = useState(0); 
+  const [viewMode, setViewMode] = useState('input'); 
+  const [showSettings, setShowSettings] = useState(false);
+  const [showCourseEditor, setShowCourseEditor] = useState(false); // 新增球場 Modal
 
-            const COURSE_PAR = {
-                guanyinshan: { out: [5,4,4,5,4,4,4,3,3], in: [4,4,3,4,5,4,3,5,4] },
-                nanyi: { out: [5,4,3,4,4,4,4,3,5], in: [4,5,4,3,4,3,4,5,4] },
-                xinyi: { out: [4,4,3,5,4,3,4,5,4], in: [4,4,4,3,4,5,4,3,5] },
-                dagangshan: { out: [4,5,3,4,5,4,4,3,4], in: [4,4,4,3,5,4,3,5,4] },
-                sinhwa: { out: [5,4,3,4,3,5,4,4,4], in: [4,4,4,3,4,5,4,3,5] },
-                jianan: { out: [4,5,4,4,3,4,4,3,5], in: [4,4,3,4,3,5,4,5,4] },
-                zhongluhe: { out: [5,4,3,4,4,3,4,5,4], in: [4,4,4,5,3,4,4,3,5] },
-            };
+  // --- 資料狀態 ---
+  
+  // 自訂球場與球場列表
+  const [customCourses, setCustomCourses] = useState([]);
+  const [courseList, setCourseList] = useState(DEFAULT_COURSES);
+  const [courseParData, setCourseParData] = useState(DEFAULT_COURSE_PAR);
 
-            const DEFAULTS = { numPlayers: 4, goldenBall: 18, course: 'guanyinshan', outNine: 'out', inNine: 'in', names: ['球員 A','球員 B','球員 C','球員 D'] };
-            const state = { ...DEFAULTS, names: [...DEFAULTS.names], par: [] };
-            const STORAGE_KEY = 'golf-scorecard-v2';
+  // 初始化：從 LocalStorage 讀取自訂球場
+  useEffect(() => {
+    const savedCourses = localStorage.getItem('my_golf_courses');
+    if (savedCourses) {
+      try {
+        const parsed = JSON.parse(savedCourses);
+        if (Array.isArray(parsed)) {
+          setCustomCourses(parsed);
+          // 合併到主選單
+          const newCourses = parsed.map(c => ({ id: c.id, name: c.name }));
+          setCourseList([...DEFAULT_COURSES, ...newCourses]);
+          
+          const newParData = { ...DEFAULT_COURSE_PAR };
+          parsed.forEach(c => {
+             newParData[c.id] = { out: c.out, in: c.in };
+          });
+          setCourseParData(newParData);
+        }
+      } catch (e) { console.error("Failed to load custom courses", e); }
+    }
+  }, []);
 
-            function loadState() { try { const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return; const saved = JSON.parse(raw); Object.assign(state, saved, { names: saved.names || state.names }); } catch {} }
-            const saveState = debounce(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify({ numPlayers: state.numPlayers, goldenBall: state.goldenBall, course: state.course, outNine: state.outNine, inNine: state.inNine, names: state.names })); }, 300);
+  // 儲存自訂球場
+  const saveCustomCourse = (newCourse) => {
+    const updated = [...customCourses, newCourse];
+    setCustomCourses(updated);
+    localStorage.setItem('my_golf_courses', JSON.stringify(updated));
+    
+    // Update runtime state
+    setCourseList([...courseList, { id: newCourse.id, name: newCourse.name }]);
+    setCourseParData({ ...courseParData, [newCourse.id]: { out: newCourse.out, in: newCourse.in } });
+  };
 
-            function resolveParAndHoleNos() {
-                const out = COURSE_PAR[state.course].out;
-                const inn = COURSE_PAR[state.course].in;
-                const par = [];
-                const holes = [];
+  const deleteCustomCourse = (id) => {
+    const updated = customCourses.filter(c => c.id !== id);
+    setCustomCourses(updated);
+    localStorage.setItem('my_golf_courses', JSON.stringify(updated));
+    
+    setCourseList([...DEFAULT_COURSES, ...updated.map(c => ({ id: c.id, name: c.name }))]);
+    // Note: We don't remove from courseParData strictly needed, but it's cleaner to keep keys
+    // For simplicity, we just leave the data in courseParData, it won't be accessible via UI
+    if (courseId === id) setCourseId('guanyinshan'); // Reset selection if deleted
+  };
 
-                if (state.outNine === 'out') { par.push(...out); holes.push(...[1,2,3,4,5,6,7,8,9]); }
-                else { par.push(...inn); holes.push(...[10,11,12,13,14,15,16,17,18]); }
+  const [names, setNames] = useState(['球員 A', '球員 B', '球員 C', '球員 D']);
+  const [golfScores, setGolfScores] = useState(Array(18).fill([null, null, null, null])); 
+  const [courseId, setCourseId] = useState('guanyinshan');
+  const [startNine, setStartNine] = useState('out'); 
+  const [goldenBallHole, setGoldenBallHole] = useState(18); 
+  const [pointScores, setPointScores] = useState(Array(18).fill(['blank', 'blank', 'blank', 'blank']));
+  const [pointValues, setPointValues] = useState({ cut: 150, gold: 100, silver: 50, bronze: 30, iron: 20 });
+  const [holeMultipliers, setHoleMultipliers] = useState(Array(18).fill(1));
+  const [teamStake, setTeamStake] = useState(10); 
 
-                if (state.inNine === 'in') { par.push(...inn); holes.push(...[10,11,12,13,14,15,16,17,18]); }
-                else { par.push(...out); holes.push(...[1,2,3,4,5,6,7,8,9]); }
-                
-                return { par, holes };
-            }
+  // --- 計算邏輯 ---
 
-            function updateHeaders() {
-                const numVisiblePlayers = state.numPlayers;
-                for (let i = 0; i < 4; i++) {
-                    const name = state.names[i] || `球員 ${i+1}`;
-                    el.playerScoreHeaders[i].textContent = name;
-                    el.playerPointHeaders[i].textContent = `${name} 點數`;
-                    const show = i < numVisiblePlayers;
-                    el.playerScoreHeaders[i].classList.toggle('hidden', !show);
-                    el.playerPointHeaders[i].classList.toggle('hidden', !show);
-                    const wrap = el.playerNameInputs[i].closest('label');
-                    wrap.classList.toggle('hidden', !show);
-                }
-            }
+  const { parList, holeNumbers } = useMemo(() => {
+    const course = courseParData[courseId] || DEFAULT_COURSE_PAR['guanyinshan'];
+    let pars = [], nums = [];
+    if (startNine === 'out') {
+      pars = [...course.out, ...course.in];
+      nums = [...Array(9).keys().map(i=>i+1), ...Array(9).keys().map(i=>i+10)];
+    } else {
+      pars = [...course.in, ...course.out];
+      nums = [...Array(9).keys().map(i=>i+10), ...Array(9).keys().map(i=>i+1)];
+    }
+    return { parList: pars, holeNumbers: nums };
+  }, [courseId, startNine, courseParData]);
 
-            function renderGoldenBallOptions() { el.goldenBallHole.innerHTML = ''; for (let i = 1; i <= 18; i++) { const opt = document.createElement('option'); opt.value = String(i); opt.textContent = `第 ${i} 洞`; if (i === state.goldenBall) opt.selected = true; el.goldenBallHole.appendChild(opt); } }
+  const golfResults = useMemo(() => {
+    const playerTotals = [0, 0, 0, 0];
+    const playerStrokes = [0, 0, 0, 0];
+    const holePoints = Array(18).fill(null).map(() => [0, 0, 0, 0]);
 
-            function renderGolfTable() {
-                el.scoreBody.innerHTML = '';
-                const { par, holes } = resolveParAndHoleNos();
-                state.par = par;
-                for (let r = 0; r < 18; r++) {
-                    const holeNo = holes[r];
-                    const parValue = par[r];
-                    const isGolden = holeNo === state.goldenBall;
-                    const tr = document.createElement('tr');
-                    tr.dataset.hole = String(holeNo);
+    golfScores.forEach((scores, hIdx) => {
+      const par = parList[hIdx];
+      const holeNo = holeNumbers[hIdx];
+      const isGolden = holeNo === Number(goldenBallHole);
+      const isComplete = scores.every(s => s !== null && s !== '' && s > 0);
+      
+      scores.forEach((s, pIdx) => { if(s) playerStrokes[pIdx] += Number(s); });
 
-                    const holeCell = `<td class="px-3 py-2 whitespace-nowrap text-sm font-semibold ${isGolden ? 'text-yellow-600' : 'text-gray-900'}">${r+1} (${holeNo})${isGolden ? ' ⭐' : ''}</td>`;
-                    const parCell = `<td class="px-3 py-2 text-sm text-gray-700"><input type="number" min="3" max="5" value="${parValue}" class="cell-input par-input" data-hole="${holeNo}"></td>`;
-                    
-                    let inputCells = '';
-                    const maxPlayers = state.numPlayers;
-                    for (let p = 1; p <= 4; p++) {
-                        const hidden = p > maxPlayers ? 'hidden' : '';
-                        inputCells += `<td class="px-3 py-2 text-sm ${hidden}"><input type="number" min="1" max="20" class="cell-input golf-player-score" data-hole="${holeNo}" data-player="${p}"></td>`;
-                    }
-                    
-                    let pointCells = '';
-                    for (let p = 1; p <= 4; p++) {
-                        const hidden = p > maxPlayers ? 'hidden' : '';
-                        pointCells += `<td class="px-3 py-2 text-sm text-center ${hidden} ${isGolden ? 'bg-yellow-50' : ''}"><span id="golf-points-h${holeNo}-p${p}" class="font-semibold text-gray-600">-</span></td>`;
-                    }
-                    
-                    tr.innerHTML = holeCell + parCell + inputCells + pointCells;
-                    el.scoreBody.appendChild(tr);
-                }
-            }
+      if (!isComplete) return;
 
-            function renderGolfTotals(rows) {
-                const sortedRows = [...rows].sort((a,b) => b.points - a.points || a.strokes - b.strokes);
-                el.totalBody.innerHTML = '';
-                sortedRows.forEach((r, i) => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td class="px-3 py-2 text-sm text-gray-900">${r.name}</td>
-                        <td class="px-3 py-2 text-sm text-gray-700">${r.strokes}</td>
-                        <td class="px-3 py-2 text-sm ${r.points > 0 ? 'text-green-600' : r.points < 0 ? 'text-red-600' : 'text-gray-700'}">${r.points}</td>
-                        <td class="px-3 py-2 text-sm">${i+1}</td>
-                    `;
-                    el.totalBody.appendChild(tr);
-                });
-            }
+      const pts = [0, 0, 0, 0];
+      for (let i = 0; i < 4; i++) {
+        for (let j = i + 1; j < 4; j++) {
+           let p = calcPairPointsByRules(scores[i], scores[j], par);
+           if (isGolden) {
+             if (Number(scores[i]) < Number(scores[j])) p += 1;
+             else if (Number(scores[j]) < Number(scores[i])) p -= 1;
+           }
+           pts[i] += p;
+           pts[j] -= p;
+        }
+      }
+      pts.forEach((p, i) => { holePoints[hIdx][i] = p; playerTotals[i] += p; });
+    });
+    return { playerTotals, playerStrokes, holePoints };
+  }, [golfScores, parList, holeNumbers, goldenBallHole]);
 
-            function calcPointsMode() {
-                const N = state.numPlayers;
-                const totals = Array(N).fill(0);
-                const strokes = Array(N).fill(0);
-                const { par, holes } = resolveParAndHoleNos();
-                
-                for (let r = 0; r < 18; r++) {
-                    const holeNo = holes[r];
-                    const parValue = par[r];
-                    const scores = Array.from({length:N}, (_,i)=>{
-                        const input = qs(`.golf-player-score[data-hole="${holeNo}"][data-player="${i+1}"]`);
-                        return toInt(input && input.value);
-                    });
-                    
-                    let validScoresExist = false;
-                    for (let i=0; i<N; i++) {
-                        if (scores[i] !== null) {
-                            strokes[i] += scores[i];
-                            validScoresExist = true;
-                        }
-                    }
-
-                    if (!validScoresExist) {
-                        for (let p = 0; p < N; p++) {
-                            const span = qs(`#golf-points-h${holeNo}-p${p+1}`);
-                            if (span) span.textContent = '-';
-                        }
-                        continue;
-                    }
-
-                    const holePts = Array(N).fill(0);
-                    const isGolden = holeNo === state.goldenBall;
-
-                    for (let i = 0; i < N; i++) {
-                        if (scores[i] === null) continue;
-                        for (let j = i + 1; j < N; j++) {
-                            if (scores[j] === null) continue;
-                            let points = calcPairPointsByRules(scores[i], scores[j], parValue);
-                            if (isGolden) {
-                                if (scores[i] < scores[j]) { points += 1; }
-                                else if (scores[j] < scores[i]) { points -= 1; }
-                            }
-                            holePts[i] += points;
-                            holePts[j] -= points;
-                        }
-                    }
-                    for (let i=0; i<N; i++) {
-                        const span = qs(`#golf-points-h${holeNo}-p${i+1}`);
-                        const val = holePts[i] || 0;
-                        if (span) {
-                            span.textContent = val;
-                            span.className = `font-semibold ${val>0?'text-green-600':val<0?'text-red-600':'text-gray-600'}`;
-                        }
-                        totals[i] += val;
-                    }
-                }
-                const rows = [...Array(N)].map((_,i)=>({ name: state.names[i], strokes: strokes[i], points: totals[i] }));
-                renderGolfTotals(rows);
-            }
-            
-            function calcPairPointsByRules(a, b, par) {
-                if (a === null || b === null) return 0;
-                const aRel = a - par;
-                const bRel = b - par;
-            
-                let points = 0;
-                if (aRel === 0 && bRel > 0) { points = 2; }
-                if (aRel > 0 && bRel === 0) { points = -2; }
-                if (aRel > 0 && bRel > 0) {
-                    if (a < b) { points = 1; }
-                    else if (b < a) { points = -1; }
-                }
-                if (aRel < 0 && bRel >= 0) {
-                    if (aRel === -1) { points = (bRel === 0) ? 1 : 3; }
-                    else if (aRel <= -2) { points = (bRel === 0) ? 3 : 5; }
-                }
-                if (bRel < 0 && aRel >= 0) {
-                    if (bRel === -1) { points = -((aRel === 0) ? 1 : 3); }
-                    else if (bRel <= -2) { points = -((aRel === 0) ? 3 : 5); }
-                }
-                if (aRel < 0 && bRel < 0) {
-                    if (a < b) { points = (aRel <= -2) ? 3 : 1; }
-                    else if (b < a) { points = -((bRel <= -2) ? 3 : 1); }
-                }
-
-                if ((par === 4 || par === 5) && a >= par * 2 && a > b) { points -= 1; }
-                if ((par === 4 || par === 5) && b >= par * 2 && b > a) { points += 1; }
-
-                return points;
-            }
-
-            function recalcGolf() {
-                calcPointsMode();
-                saveState();
-            }
-            const recalcGolfDebounced = debounce(recalcGolf, 80);
-
-            function bindEvents() {
-                el.numPlayers.addEventListener('change', (e) => {
-                    state.numPlayers = clamp(parseInt(e.target.value,10)||4, 2, 4);
-                    updateHeaders();
-                    renderGolfTable();
-                    recalcGolf();
-                });
-                el.playerNameInputs.forEach((inp, idx) => inp.addEventListener('input', () => {
-                    state.names[idx] = inp.value.trim() || `球員 ${idx+1}`;
-                    updateHeaders();
-                    recalcGolfDebounced();
-                }));
-                [el.courseSelect, el.outNine, el.inNine].forEach(sel => sel.addEventListener('change', () => {
-                    state.course = el.courseSelect.value;
-                    state.outNine = el.outNine.value;
-                    state.inNine = el.inNine.value;
-                    renderGolfTable();
-                    recalcGolf();
-                }));
-                el.goldenBallHole.addEventListener('change', (e) => {
-                    state.goldenBall = clamp(parseInt(e.target.value,10)||18, 1, 18);
-                    renderGolfTable();
-                    recalcGolf();
-                });
-                el.scoreBody.addEventListener('input', (e) => {
-                    const t = e.target;
-                    if (t.matches('.golf-player-score')) {
-                        const v = clamp(toInt(t.value), 1, 20);
-                        t.value = v;
-                        recalcGolfDebounced();
-                    } else if (t.matches('.par-input')) {
-                        const v = clamp(toInt(t.value), 3, 5);
-                        t.value = v;
-                        recalcGolfDebounced();
-                    }
-                });
-            }
-
-            function init() {
-                loadState();
-                el.numPlayers.value = String(state.numPlayers);
-                el.courseSelect.value = state.course;
-                el.outNine.value = state.outNine;
-                el.inNine.value = state.inNine;
-                el.playerNameInputs.forEach((inp,i)=> inp.value = state.names[i]);
-                renderGoldenBallOptions();
-                el.goldenBallHole.value = String(state.goldenBall);
-                updateHeaders();
-                renderGolfTable();
-                bindEvents();
-                recalcGolf();
-            }
-
-            return { init, recalcGolf };
-        })();
-
-
-        // 金銀銅鐵計分器
-        const pointApp = (function() {
-            const playerCount = 4;
-            const totalHoles = 18;
-            let pointValues = {
-                '切': 150, '金': 100, '銀': 50, '銅': 30, '鐵': 20, '無': 0, '空白': 0
-            };
-            let playerScores = Array.from({ length: totalHoles }, () => Array(playerCount).fill('空白'));
-            let playerNames = ['玩家1', '玩家2', '玩家3', '玩家4'];
-            const resultTypes = ['空白', '切', '金', '銀', '銅', '鐵', '無'];
-            const resultTypeLabels = ['(空白)', '切', '金', '銀', '銅', '鐵', '無'];
-            
-            const pointInputs = document.querySelectorAll('#pointSettingsSection input[type="number"]');
-            const pointScoreTableBody = document.getElementById('pointScoreTableBody');
-            const pointPlayerNameInputsContainer = document.getElementById('pointPlayerNameInputs');
-            const pointTotalScoreEls = [0, 1, 2, 3].map(i => document.getElementById(`point-total-score-${i}`));
-
-            function renderPointPlayerNameInputs() {
-                pointPlayerNameInputsContainer.innerHTML = '';
-                for (let i = 0; i < playerCount; i++) {
-                    pointPlayerNameInputsContainer.innerHTML += `
-                        <div class="flex flex-col">
-                            <label for="point-player-name-${i}" class="text-sm font-medium text-gray-600">玩家 ${i + 1} 姓名</label>
-                            <input type="text" id="point-player-name-${i}" value="${playerNames[i]}" class="mt-1 px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm">
-                        </div>
-                    `;
-                }
-                document.querySelectorAll('#pointPlayerNameInputs input').forEach((input, i) => {
-                    input.addEventListener('input', (e) => {
-                        playerNames[i] = e.target.value;
-                        updatePointHeaders();
-                    });
-                });
-            }
-
-            function updatePointHeaders() {
-                for (let i = 0; i < playerCount; i++) {
-                    const header = document.getElementById(`point-player-header-${i}`);
-                    if (header) header.textContent = playerNames[i];
-                }
-            }
-
-            function renderPointScoreTable() {
-                pointScoreTableBody.innerHTML = '';
-                for (let hole = 1; hole <= totalHoles; hole++) {
-                    const tr = document.createElement('tr');
-                    tr.className = 'hover:bg-gray-50';
-                    const holeCell = `<td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">第 ${hole} 洞</td>`;
-                    tr.innerHTML += holeCell;
-
-                    for (let i = 0; i < playerCount; i++) {
-                        const scoreCell = document.createElement('td');
-                        scoreCell.className = `px-3 py-2 whitespace-nowrap text-sm`;
-                        const selectHtml = `<select class="w-full inline-block px-1 py-1 bg-white border border-gray-300 rounded-md shadow-sm text-sm point-player-score-select" data-hole="${hole}" data-player="${i}">
-                                                ${resultTypes.map((type, idx) => `<option value="${type}" ${playerScores[hole - 1][i] === type ? 'selected' : ''}>${resultTypeLabels[idx]}</option>`).join('')}
-                                            </select>`;
-                        const pointsSpan = `<span id="point-points-h${hole}-p${i}" class="block mt-1 font-bold text-gray-500">0</span>`;
-                        scoreCell.innerHTML = selectHtml + pointsSpan;
-                        tr.appendChild(scoreCell);
-                    }
-                    pointScoreTableBody.appendChild(tr);
-                }
-                bindPointEvents();
-            }
-
-            const debounce = (fn, wait = 120) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); }; };
-
-            function updatePointScoreboard() {
-                const playerTotals = Array(playerCount).fill(0);
-                
-                for (let hole = 1; hole <= totalHoles; hole++) {
-                    const holePoints = calculatePointHoleScores(hole);
-                    
-                    holePoints.forEach((point, index) => {
-                        playerTotals[index] += point;
-                        const pointSpan = document.getElementById(`point-points-h${hole}-p${index}`);
-                        if (pointSpan) {
-                             pointSpan.textContent = point;
-                             pointSpan.className = `block mt-1 font-bold ${point > 0 ? 'text-green-600' : point < 0 ? 'text-red-600' : 'text-gray-500'}`;
-                        }
-                    });
-                }
-
-                for (let i = 0; i < playerCount; i++) {
-                    if (pointTotalScoreEls[i]) {
-                        pointTotalScoreEls[i].textContent = playerTotals[i];
-                    }
-                }
-            }
-            
-            function calculatePointHoleScores(hole) {
-                const points = Array(playerCount).fill(0);
-                const holeResults = playerScores[hole - 1];
-
-                const winners = [];
-                for (let i = 0; i < playerCount; i++) {
-                    const scoreType = holeResults[i];
-                    if (scoreType !== '無' && scoreType !== '空白') {
-                        winners.push({ id: i, value: pointValues[scoreType] });
-                    }
-                }
-
-                // 計算每個玩家的得分/付分
-                for (let i = 0; i < playerCount; i++) {
-                    const myScoreType = holeResults[i];
-                    const myScoreValue = pointValues[myScoreType];
-                    
-                    if (myScoreType === '空白') continue;
-
-                    let totalPointsChange = 0;
-                    
-                    // 1. 計算「獲得」的點數：自己有得分，就從所有非空白的玩家那邊收取
-                    if (myScoreType !== '無') {
-                        const nonBlankPlayers = holeResults.filter(score => score !== '空白').length;
-                        // 點數 = 自己的分數 * (其他有參與的玩家數)
-                        totalPointsChange += myScoreValue * (nonBlankPlayers - 1);
-                    }
-                    
-                    // 2. 計算「支付」的點數：付給所有有得分的玩家
-                    for (const winner of winners) {
-                        if (winner.id !== i) { // 不付給自己
-                            totalPointsChange -= winner.value;
-                        }
-                    }
-
-                    points[i] = totalPointsChange;
-                }
-                
-                return points;
-            }
-
-            const updatePointScoreboardDebounced = debounce(updatePointScoreboard, 80);
-
-            function bindPointEvents() {
-                pointInputs.forEach(input => {
-                    input.addEventListener('change', () => {
-                        const type = input.id.split('-')[1];
-                        switch (type) {
-                            case 'cut': pointValues['切'] = parseInt(input.value); break;
-                            case 'gold': pointValues['金'] = parseInt(input.value); break;
-                            case 'silver': pointValues['銀'] = parseInt(input.value); break;
-                            case 'bronze': pointValues['銅'] = parseInt(input.value); break;
-                            case 'iron': pointValues['鐵'] = parseInt(input.value); break;
-                        }
-                        updatePointScoreboardDebounced();
-                    });
-                });
-                
-                document.querySelectorAll('.point-player-score-select').forEach(select => {
-                    select.addEventListener('change', (e) => {
-                        const h = parseInt(e.target.dataset.hole);
-                        const p = parseInt(e.target.dataset.player);
-                        playerScores[h - 1][p] = e.target.value;
-                        updatePointScoreboardDebounced();
-                    });
-                });
-            }
-
-            function init() {
-                renderPointPlayerNameInputs();
-                renderPointScoreTable();
-            }
-
-            return { init, updatePointScoreboard };
-        })();
-
-
-        // 主控台，負責切換和初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            const golfCounter = document.getElementById('golfCounter');
-            const pointCounter = document.getElementById('pointCounter');
-            const toggleGolfBtn = document.getElementById('toggleGolf');
-            const togglePointBtn = document.getElementById('togglePoint');
-
-            function showGolf() {
-                golfCounter.classList.remove('hidden');
-                pointCounter.classList.add('hidden');
-                toggleGolfBtn.classList.add('bg-emerald-500');
-                toggleGolfBtn.classList.remove('bg-gray-400');
-                togglePointBtn.classList.add('bg-gray-400');
-                togglePointBtn.classList.remove('bg-emerald-500');
-                golfApp.recalcGolf();
-            }
-
-            function showPoint() {
-                pointCounter.classList.remove('hidden');
-                golfCounter.classList.add('hidden');
-                togglePointBtn.classList.add('bg-emerald-500');
-                togglePointBtn.classList.remove('bg-gray-400');
-                toggleGolfBtn.classList.add('bg-gray-400');
-                toggleGolfBtn.classList.remove('bg-emerald-500');
-                pointApp.updatePointScoreboard();
-            }
-
-            toggleGolfBtn.addEventListener('click', showGolf);
-            togglePointBtn.addEventListener('click', showPoint);
-
-            golfApp.init();
-            pointApp.init();
-            showGolf();
+  const pointResults = useMemo(() => {
+    const totals = [0, 0, 0, 0];
+    const holeRes = pointScores.map(row => {
+      const rowPts = [0, 0, 0, 0];
+      const winners = [];
+      row.forEach((type, pIdx) => {
+         if (type !== 'blank' && type !== 'none') {
+           winners.push({ idx: pIdx, val: pointValues[type] || 0 });
+         }
+      });
+      row.forEach((myType, i) => {
+        if (myType === 'blank') return;
+        let change = 0;
+        const myVal = pointValues[myType] || 0;
+        if (myType !== 'none') {
+           const validPlayersCount = row.filter(t => t !== 'blank').length;
+           change += myVal * (validPlayersCount - 1);
+        }
+        winners.forEach(w => {
+          if (w.idx !== i) change -= w.val;
         });
-    </script>
-</body>
-</html>
+        rowPts[i] = change;
+        totals[i] += change;
+      });
+      return rowPts;
+    });
+    return { totals, holeRes };
+  }, [pointScores, pointValues]);
+
+  const teamResults = useMemo(() => {
+    const totals = [0, 0, 0, 0]; 
+    const holeDetails = [];
+    golfScores.forEach((scores, hIdx) => {
+      const par = parList[hIdx];
+      const mult = holeMultipliers[hIdx];
+      const result = calcTeamMatch(scores, par, mult);
+      holeDetails.push(result);
+      if (result.diff !== 0) {
+        const money = result.diff * teamStake;
+        totals[0] += money; totals[1] += money; totals[2] -= money; totals[3] -= money;
+      }
+    });
+    return { totals, holeDetails };
+  }, [golfScores, holeMultipliers, teamStake, parList]);
+
+  // --- Handlers ---
+
+  const handleGolfScoreChange = (pIdx, delta) => {
+    const newScores = [...golfScores];
+    const currentVal = newScores[currentHoleIdx][pIdx];
+    let nextVal = currentVal;
+    if (currentVal === null || currentVal === '') nextVal = parList[currentHoleIdx];
+    else nextVal = Number(currentVal) + delta;
+    if (nextVal < 1) nextVal = 1;
+    newScores[currentHoleIdx] = [...newScores[currentHoleIdx]];
+    newScores[currentHoleIdx][pIdx] = nextVal;
+    setGolfScores(newScores);
+  };
+
+  const handlePointToggle = (pIdx) => {
+    const types = POINT_TYPES.map(t => t.id);
+    const currentType = pointScores[currentHoleIdx][pIdx];
+    const nextIdx = (types.indexOf(currentType) + 1) % types.length;
+    const newScores = [...pointScores];
+    newScores[currentHoleIdx] = [...newScores[currentHoleIdx]];
+    newScores[currentHoleIdx][pIdx] = types[nextIdx];
+    setPointScores(newScores);
+  };
+
+  const handleMultiplierChange = (delta) => {
+    const newMults = [...holeMultipliers];
+    let val = newMults[currentHoleIdx] + delta;
+    if (val < 1) val = 1;
+    if (val > 6) val = 6;
+    newMults[currentHoleIdx] = val;
+    setHoleMultipliers(newMults);
+  };
+
+  // --- Course Editor Component ---
+
+  const CourseEditor = ({ onSave, onCancel }) => {
+    const [name, setName] = useState('');
+    const [outPars, setOutPars] = useState(Array(9).fill(4));
+    const [inPars, setInPars] = useState(Array(9).fill(4));
+
+    const togglePar = (arr, setArr, idx) => {
+      const newArr = [...arr];
+      // Cycle 3 -> 4 -> 5 -> 6 -> 3
+      newArr[idx] = newArr[idx] >= 6 ? 3 : newArr[idx] + 1;
+      setArr(newArr);
+    }
+
+    const handleSave = () => {
+      if (!name.trim()) return alert('請輸入球場名稱');
+      const id = 'custom_' + Date.now();
+      onSave({ id, name, out: outPars, in: inPars });
+    };
+
+    return (
+      <div className="space-y-4">
+         <div>
+           <label className="block text-sm font-bold text-gray-700 mb-1">球場名稱</label>
+           <input className="w-full border rounded p-2" placeholder="例如：東方球場" value={name} onChange={e=>setName(e.target.value)} />
+         </div>
+         
+         <div>
+           <h4 className="font-bold text-sm mb-2 text-emerald-700">OUT (Hole 1-9) 標準桿</h4>
+           <div className="grid grid-cols-9 gap-1">
+             {outPars.map((p, i) => (
+               <button key={i} onClick={() => togglePar(outPars, setOutPars, i)} className="aspect-square bg-emerald-50 border border-emerald-200 rounded flex items-center justify-center font-bold text-emerald-800 text-lg hover:bg-emerald-100">
+                 {p}
+               </button>
+             ))}
+           </div>
+           <div className="text-right text-xs text-gray-500 mt-1">Total: {outPars.reduce((a,b)=>a+b,0)}</div>
+         </div>
+
+         <div>
+           <h4 className="font-bold text-sm mb-2 text-blue-700">IN (Hole 10-18) 標準桿</h4>
+           <div className="grid grid-cols-9 gap-1">
+             {inPars.map((p, i) => (
+               <button key={i} onClick={() => togglePar(inPars, setInPars, i)} className="aspect-square bg-blue-50 border border-blue-200 rounded flex items-center justify-center font-bold text-blue-800 text-lg hover:bg-blue-100">
+                 {p}
+               </button>
+             ))}
+           </div>
+           <div className="text-right text-xs text-gray-500 mt-1">Total: {inPars.reduce((a,b)=>a+b,0)}</div>
+         </div>
+
+         <div className="flex gap-2 pt-2">
+           <button onClick={onCancel} className="flex-1 py-2 text-gray-500 bg-gray-100 rounded-lg">取消</button>
+           <button onClick={handleSave} className="flex-1 py-2 text-white bg-emerald-600 rounded-lg font-bold">儲存球場</button>
+         </div>
+      </div>
+    )
+  }
+
+  // --- Render ---
+
+  const currentPar = parList[currentHoleIdx];
+  const currentHoleNo = holeNumbers[currentHoleIdx];
+  const isGolden = Number(goldenBallHole) === currentHoleNo;
+  const currentTeamHoleData = teamResults.holeDetails[currentHoleIdx];
+
+  const getLeader = (totals) => totals.map((s, i) => ({s, i})).sort((a,b) => b.s - a.s)[0];
+  const golfLeader = getLeader(golfResults.playerTotals);
+  const pointLeader = getLeader(pointResults.totals);
+  const teamLeader = getLeader(teamResults.totals);
+
+  return (
+    <div className="min-h-screen bg-gray-100 font-sans text-gray-900 pb-24 md:pb-0">
+      
+      {/* 頂部導航 */}
+      <div className="bg-emerald-600 text-white p-4 sticky top-0 z-20 shadow-md">
+        <div className="max-w-md mx-auto space-y-3">
+          <div className="flex justify-between items-center">
+             <div className="flex items-center gap-2">
+                <button onClick={() => setShowSettings(true)} className="p-2 hover:bg-emerald-700 rounded-full transition">
+                  <Settings size={20} />
+                </button>
+                <div className="text-sm font-medium opacity-90">{courseList.find(c=>c.id===courseId)?.name}</div>
+             </div>
+             <div className="flex bg-emerald-700 rounded-lg p-0.5">
+                <button onClick={() => setViewMode('input')} className={`p-2 rounded-md ${viewMode === 'input' ? 'bg-white text-emerald-700' : 'text-emerald-100'}`}><Grid size={18} /></button>
+                <button onClick={() => setViewMode('card')} className={`p-2 rounded-md ${viewMode === 'card' ? 'bg-white text-emerald-700' : 'text-emerald-100'}`}><List size={18} /></button>
+             </div>
+          </div>
+          <div className="flex bg-emerald-800/50 p-1 rounded-xl">
+             <button onClick={() => setMode('golf')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${mode === 'golf' ? 'bg-white text-emerald-700 shadow' : 'text-emerald-100 hover:bg-emerald-700/50'}`}>高爾夫計分</button>
+             <button onClick={() => setMode('point')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${mode === 'point' ? 'bg-white text-emerald-700 shadow' : 'text-emerald-100 hover:bg-emerald-700/50'}`}>金銀銅鐵</button>
+             <button onClick={() => setMode('team')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${mode === 'team' ? 'bg-white text-emerald-700 shadow' : 'text-emerald-100 hover:bg-emerald-700/50'}`}>團體對抗</button>
+          </div>
+        </div>
+      </div>
+
+      {/* 主要內容區 */}
+      <div className="max-w-md mx-auto p-4">
+        {viewMode === 'input' ? (
+          <>
+            <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 flex justify-between items-center">
+              <button onClick={() => setCurrentHoleIdx(Math.max(0, currentHoleIdx - 1))} className="p-3 bg-gray-50 rounded-xl hover:bg-gray-100 text-gray-600 disabled:opacity-30" disabled={currentHoleIdx === 0}><ChevronLeft /></button>
+              <div className="text-center">
+                <h2 className="text-2xl font-black text-gray-800 flex items-center justify-center gap-2">Hole {currentHoleNo} {isGolden && <span className="text-yellow-500 animate-pulse">⭐</span>}</h2>
+                <p className="text-gray-500 font-medium">Par {currentPar}</p>
+              </div>
+              <button onClick={() => setCurrentHoleIdx(Math.min(17, currentHoleIdx + 1))} className="p-3 bg-gray-50 rounded-xl hover:bg-gray-100 text-gray-600 disabled:opacity-30" disabled={currentHoleIdx === 17}><ChevronRight /></button>
+            </div>
+
+            {mode === 'team' && (
+               <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-4 flex items-center justify-between">
+                  <span className="font-bold text-indigo-800 flex items-center gap-2"><Calculator size={16}/> 本洞倍數</span>
+                  <div className="flex items-center gap-3">
+                     <button onClick={() => handleMultiplierChange(-1)} className="w-8 h-8 rounded-full bg-white text-indigo-600 font-bold border border-indigo-200">-</button>
+                     <span className="text-xl font-black text-indigo-900 w-8 text-center">{holeMultipliers[currentHoleIdx]}</span>
+                     <button onClick={() => handleMultiplierChange(1)} className="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold shadow">+</button>
+                  </div>
+               </div>
+            )}
+
+            <div className="space-y-3">
+              {names.map((name, idx) => {
+                let displayTotal = 0;
+                let isWinner = false;
+                if (mode === 'golf') { displayTotal = golfResults.playerTotals[idx]; isWinner = golfLeader.i === idx && displayTotal > 0; }
+                else if (mode === 'point') { displayTotal = pointResults.totals[idx]; isWinner = pointLeader.i === idx && displayTotal > 0; }
+                else { displayTotal = teamResults.totals[idx]; isWinner = teamLeader.i === idx && displayTotal > 0; }
+
+                return (
+                <div key={idx} className={`bg-white rounded-xl shadow-sm p-3 flex items-center justify-between border ${mode === 'team' && idx < 2 ? 'border-l-4 border-l-blue-500' : mode === 'team' ? 'border-l-4 border-l-orange-500' : 'border-gray-100'}`}>
+                  <div className="flex flex-col min-w-[80px]">
+                    <span className="font-bold text-gray-800 truncate flex items-center gap-1">
+                       {name}
+                       {mode === 'team' && <span className={`text-[10px] px-1 rounded ${idx < 2 ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{idx < 2 ? 'AB' : 'CD'}</span>}
+                    </span>
+                    <span className={`text-xs font-mono font-bold ${displayTotal >= 0 ? 'text-red-500' : 'text-green-600'}`}>
+                      {mode === 'team' && '$'}{displayTotal > 0 ? '+' : ''}{displayTotal}
+                    </span>
+                  </div>
+
+                  {mode === 'point' ? (
+                    <button onClick={() => handlePointToggle(idx)} className={`flex-1 ml-4 py-3 px-4 rounded-xl border-2 transition-all active:scale-95 flex justify-between items-center ${POINT_TYPES.find(t=>t.id === pointScores[currentHoleIdx][idx])?.color}`}>
+                      <span className="font-bold text-lg">{POINT_TYPES.find(t=>t.id === pointScores[currentHoleIdx][idx])?.label}</span>
+                      <span className="text-xs opacity-60">{POINT_TYPES.find(t=>t.id === pointScores[currentHoleIdx][idx])?.val}</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => handleGolfScoreChange(idx, -1)} className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xl flex items-center justify-center active:scale-95 transition">-</button>
+                      <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center border-2 ${!golfScores[currentHoleIdx][idx] ? 'border-gray-200 bg-gray-50' : 'border-emerald-500 bg-emerald-50 text-emerald-800'}`}>
+                        <span className="text-2xl font-bold">{golfScores[currentHoleIdx][idx] || '-'}</span>
+                      </div>
+                      <button onClick={() => handleGolfScoreChange(idx, 1)} className="w-12 h-12 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-xl flex items-center justify-center active:scale-95 transition">+</button>
+                    </div>
+                  )}
+                </div>
+              )})}
+            </div>
+            
+            {mode === 'golf' && golfScores[currentHoleIdx].every(s => s) && (
+               <div className="mt-4 bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                 <h4 className="text-center text-xs text-emerald-600 font-bold uppercase tracking-wider mb-2">本洞對戰 (比洞)</h4>
+                 <div className="grid grid-cols-4 text-center">
+                    {golfResults.holePoints[currentHoleIdx].map((pt, i) => (
+                      <div key={i} className={`font-bold ${pt > 0 ? 'text-red-500' : pt < 0 ? 'text-green-600' : 'text-gray-400'}`}>{pt > 0 ? '+' : ''}{pt}</div>
+                    ))}
+                 </div>
+               </div>
+            )}
+
+            {mode === 'team' && golfScores[currentHoleIdx].every(s => s) && (
+              <div className="mt-4 bg-white rounded-xl shadow-lg border border-indigo-200 overflow-hidden">
+                 <div className="bg-indigo-600 text-white p-2 text-center text-sm font-bold flex justify-between px-4">
+                    <span>AB 隊</span>
+                    <span>VS</span>
+                    <span>CD 隊</span>
+                 </div>
+                 <div className="p-4 flex justify-between items-center">
+                    <div className="text-center">
+                       <div className="text-xs text-gray-500 mb-1">原始: {currentTeamHoleData.abRaw}</div>
+                       <div className={`text-3xl font-black ${currentTeamHoleData.diff > 0 ? 'text-red-500' : 'text-gray-800'}`}>{currentTeamHoleData.abScore}</div>
+                    </div>
+                    <div className="flex flex-col items-center">
+                       <span className="text-xs text-indigo-500 font-bold bg-indigo-50 px-2 py-1 rounded-full mb-1">x{currentTeamHoleData.finalMultiplier}</span>
+                       <span className="text-xl font-bold text-gray-400">Diff: {Math.abs(currentTeamHoleData.abScore - currentTeamHoleData.cdScore)}</span>
+                    </div>
+                    <div className="text-center">
+                       <div className="text-xs text-gray-500 mb-1">原始: {currentTeamHoleData.cdRaw}</div>
+                       <div className={`text-3xl font-black ${currentTeamHoleData.diff < 0 ? 'text-red-500' : 'text-gray-800'}`}>{currentTeamHoleData.cdScore}</div>
+                    </div>
+                 </div>
+                 {currentTeamHoleData.msg && (
+                    <div className="bg-yellow-50 text-yellow-800 text-xs text-center py-1 border-t border-yellow-100">
+                       🔥 {currentTeamHoleData.msg}
+                    </div>
+                 )}
+                 <div className="bg-gray-50 p-3 text-center border-t">
+                    <span className="text-gray-500 text-sm">本洞結算: </span>
+                    <span className={`text-lg font-bold ml-2 ${currentTeamHoleData.diff !== 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                       {currentTeamHoleData.diff > 0 ? 'AB隊' : currentTeamHoleData.diff < 0 ? 'CD隊' : '平手'} 
+                       {currentTeamHoleData.diff !== 0 && ` 贏 ${Math.abs(currentTeamHoleData.diff)}分 ($${Math.abs(currentTeamHoleData.diff) * teamStake})`}
+                    </span>
+                 </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="space-y-6">
+             <div className="grid grid-cols-1 gap-4">
+                <div className="bg-white rounded-2xl shadow p-4 border border-gray-100">
+                   <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Trophy size={16} className="text-emerald-500"/> 目前總戰績 (高爾夫)</h3>
+                   <div className="grid grid-cols-4 gap-2 text-center text-sm">
+                      {names.map((n, i) => (
+                        <div key={i} className="flex flex-col p-2 bg-gray-50 rounded-lg">
+                           <span className="text-xs text-gray-500 truncate">{n}</span>
+                           <span className="font-bold text-gray-800">{golfResults.playerStrokes[i]} 桿</span>
+                           <span className={`text-xs ${golfResults.playerTotals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>{golfResults.playerTotals[i] > 0 ? '+' : ''}{golfResults.playerTotals[i]} 點</span>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+                <div className="bg-white rounded-2xl shadow p-4 border border-gray-100">
+                   <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Medal size={16} className="text-amber-500"/> 金銀銅鐵 (點數)</h3>
+                   <div className="grid grid-cols-4 gap-2 text-center text-sm">
+                      {names.map((n, i) => (
+                        <div key={i} className="flex flex-col p-2 bg-gray-50 rounded-lg">
+                           <span className="text-xs text-gray-500 truncate">{n}</span>
+                           <span className={`font-bold ${pointResults.totals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>{pointResults.totals[i]}</span>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+                <div className="bg-white rounded-2xl shadow p-4 border border-gray-100">
+                   <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Users size={16} className="text-indigo-500"/> 團體對抗 (金額)</h3>
+                   <div className="grid grid-cols-4 gap-2 text-center text-sm">
+                      {names.map((n, i) => (
+                        <div key={i} className={`flex flex-col p-2 rounded-lg ${i<2 ? 'bg-blue-50' : 'bg-orange-50'}`}>
+                           <span className="text-xs text-gray-500 truncate">{n}</span>
+                           <span className={`font-bold ${teamResults.totals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>${teamResults.totals[i]}</span>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+             </div>
+             <div className="bg-white rounded-2xl shadow overflow-hidden border border-gray-200">
+                <div className="bg-gray-50 p-2 text-center text-xs text-gray-500 font-bold uppercase">詳細桿數表</div>
+                <div className="overflow-x-auto">
+                   <table className="w-full text-sm">
+                     <thead>
+                       <tr className="bg-gray-50 border-b">
+                         <th className="p-2 sticky left-0 bg-gray-50">H</th>
+                         {names.map((n, i) => <th key={i} className="p-2 min-w-[50px]">{n.slice(0,1)}</th>)}
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y">
+                       {parList.map((par, hIdx) => (
+                         <tr key={hIdx} className={hIdx === currentHoleIdx ? 'bg-yellow-50' : ''}>
+                           <td className="p-2 font-bold text-gray-500 sticky left-0 bg-white border-r text-center">{holeNumbers[hIdx]}</td>
+                           {names.map((_, pIdx) => (
+                             <td key={pIdx} className="p-2 text-center font-bold text-gray-800">
+                               {golfScores[hIdx][pIdx] || '-'}
+                             </td>
+                           ))}
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                </div>
+             </div>
+          </div>
+        )}
+      </div>
+
+      <div className="fixed bottom-0 inset-x-0 bg-white border-t p-3 pb-6 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] md:pb-3 z-10">
+        <div className="max-w-md mx-auto grid grid-cols-4 gap-2">
+           {names.map((name, i) => {
+             let total = 0;
+             let isLeading = false;
+             if (mode === 'golf') { total = golfResults.playerTotals[i]; isLeading = golfLeader.i === i && total > 0; }
+             else if (mode === 'point') { total = pointResults.totals[i]; isLeading = pointLeader.i === i && total > 0; }
+             else { total = teamResults.totals[i]; isLeading = teamLeader.i === i && total > 0; }
+
+             return (
+               <div key={i} className={`flex flex-col items-center p-1 rounded-lg ${isLeading ? 'bg-yellow-50' : ''}`}>
+                 <span className="text-[10px] text-gray-500 truncate w-full text-center">{name}</span>
+                 <span className={`font-bold text-sm md:text-base ${total > 0 ? 'text-red-500' : total < 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                   {mode === 'team' && '$'}{total > 0 ? '+' : ''}{total}
+                 </span>
+                 {isLeading && <Trophy size={10} className="text-yellow-500" />}
+               </div>
+             )
+           })}
+        </div>
+      </div>
+
+      <Modal isOpen={showSettings} onClose={() => setShowSettings(false)} title="遊戲設定">
+        {!showCourseEditor ? (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-gray-700">球員姓名</label>
+              <div className="grid grid-cols-2 gap-2">
+                {names.map((n, i) => (
+                  <input key={i} value={n} onChange={(e) => {
+                      const newNames = [...names];
+                      newNames[i] = e.target.value;
+                      setNames(newNames);
+                    }}
+                    className="border rounded px-2 py-1.5 text-sm" placeholder={`Player ${i+1}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                     <label className="text-sm font-bold text-gray-700">球場</label>
+                     <button onClick={() => setShowCourseEditor(true)} className="text-xs flex items-center gap-1 text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded-full"><Plus size={12}/> 新增球場</button>
+                  </div>
+                  <select value={courseId} onChange={(e) => setCourseId(e.target.value)} className="w-full border rounded px-3 py-2 bg-white">
+                    {courseList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  {/* 如果是自訂球場，顯示刪除按鈕 */}
+                  {customCourses.find(c => c.id === courseId) && (
+                    <button onClick={() => { if(confirm('確定要刪除這個球場嗎？')) deleteCustomCourse(courseId); }} className="mt-2 text-xs text-red-500 flex items-center gap-1"><Trash2 size={12}/> 刪除此球場</button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                      <label className="text-sm font-bold text-gray-700 block mb-1">前九</label>
+                      <select value={startNine} onChange={(e) => setStartNine(e.target.value)} className="w-full border rounded px-3 py-2 bg-white">
+                        <option value="out">OUT (1-9)</option>
+                        <option value="in">IN (10-18)</option>
+                      </select>
+                  </div>
+                  <div>
+                      <label className="text-sm font-bold text-gray-700 block mb-1">Golden Ball</label>
+                      <select value={goldenBallHole} onChange={(e) => setGoldenBallHole(e.target.value)} className="w-full border rounded px-3 py-2 bg-white">
+                        {[...Array(18)].map((_,i) => {
+                          const h = startNine === 'out' ? i+1 : (i<9 ? i+10 : i-8);
+                          return <option key={i} value={holeNumbers[i]}>Hole {holeNumbers[i]}</option>
+                        })}
+                      </select>
+                  </div>
+                </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t">
+              <label className="text-sm font-bold text-gray-700 block">團體賽每分金額</label>
+              <div className="flex items-center gap-2">
+                  <DollarSign size={16} className="text-gray-500"/>
+                  <input type="number" value={teamStake} onChange={(e) => setTeamStake(Number(e.target.value))} className="border rounded px-3 py-2 w-full"/>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t">
+                <label className="text-sm font-bold text-gray-700 block">金銀銅鐵點數設定</label>
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  {Object.keys(pointValues).map(k => (
+                    <div key={k} className="flex flex-col">
+                      <span className="text-gray-500 uppercase text-xs">{k}</span>
+                      <input type="number" value={pointValues[k]} onChange={(e) => setPointValues({...pointValues, [k]: Number(e.target.value)})} className="border rounded px-2 py-1"/>
+                    </div>
+                  ))}
+                </div>
+            </div>
+            
+            <button onClick={() => setShowSettings(false)} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700">完成設定</button>
+          </div>
+        ) : (
+          <CourseEditor onSave={(data) => { saveCustomCourse(data); setShowCourseEditor(false); }} onCancel={() => setShowCourseEditor(false)} />
+        )}
+      </Modal>
+
+    </div>
+  );
+}
