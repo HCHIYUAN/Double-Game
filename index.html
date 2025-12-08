@@ -365,10 +365,11 @@
             const pointLeader = getLeader(pointResults.totals);
             const teamLeader = getLeader(teamResults.totals);
 
-            return (
-                <div className="min-h-screen bg-gray-100 font-sans text-gray-900 pb-24 md:pb-0">
-                    <div className="bg-emerald-600 text-white p-4 sticky top-0 z-20 shadow-md">
-                        <div className="max-w-md mx-auto space-y-3">
+        return (
+            // 修改這裡：將 pb-24 改為 pb-48，增加底部預留空間，防止第17、18洞被遮擋
+            <div className="min-h-screen bg-gray-100 font-sans text-gray-900 pb-48">
+                <div className="bg-emerald-600 text-white p-4 sticky top-0 z-20 shadow-md">
+                    <div className="max-w-md mx-auto space-y-3">
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
                                     <button onClick={() => setShowSettings(true)} className="p-2 hover:bg-emerald-700 rounded-full transition"><Settings /></button>
