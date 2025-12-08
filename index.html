@@ -336,9 +336,9 @@
             const [courseList, setCourseList] = useState(DEFAULT_COURSES);
             const [courseParData, setCourseParData] = useState(DEFAULT_COURSE_PAR);
 
-            // 解析資料 (Parse JSON strings back to arrays)
-            const golfScores = useMemo(() => data && data.golfScores ? JSON.parse(data.golfScores) : [], [data]);
-            const pointScores = useMemo(() => data && data.pointScores ? JSON.parse(data.pointScores) : [], [data]);
+            // 解析資料 (Parse JSON strings back to arrays) - 使用 optional chaining 防呆
+            const golfScores = useMemo(() => data?.golfScores ? JSON.parse(data.golfScores) : [], [data?.golfScores]);
+            const pointScores = useMemo(() => data?.pointScores ? JSON.parse(data.pointScores) : [], [data?.pointScores]);
 
             // 1. Sync Logic
             useEffect(() => {
@@ -384,13 +384,12 @@
             // Handlers (Adapted for Serialized Data)
             const handleGolfScoreChange = (pIdx, delta) => {
                 if(!golfScores.length) return;
-                const newScores = [...golfScores]; // Shallow copy of outer array
+                const newScores = [...golfScores]; 
                 let currentVal = newScores[currentHoleIdx][pIdx];
                 if (currentVal === null || currentVal === '') currentVal = parList[currentHoleIdx];
                 else currentVal = Number(currentVal) + delta;
                 if (currentVal < 1) currentVal = 1;
                 
-                // Copy inner array to avoid mutation
                 newScores[currentHoleIdx] = [...newScores[currentHoleIdx]];
                 newScores[currentHoleIdx][pIdx] = currentVal;
                 
@@ -450,27 +449,36 @@
                 alert("房號已複製！");
             }
 
-            // Loading state
-            if (!data) return <div className="min-h-screen flex items-center justify-center"><div className="loader"></div></div>;
+            // --- Derived State & Logic (Moved before Loading check to fix Hook Error) ---
+            
+            // 安全取得資料屬性
+            const courseId = data?.courseId;
+            const startNine = data?.startNine;
+            const goldenBallHole = data?.goldenBallHole;
+            const multipliers = data?.multipliers || [];
+            const teamStake = data?.teamStake || 10;
+            const pointValues = data?.pointValues || {};
+            const names = data?.names || [];
 
-            // Derived State
             const { parList, holeNumbers } = useMemo(() => {
-                const course = courseParData[data.courseId] || DEFAULT_COURSE_PAR['guanyinshan'];
+                // 如果沒有 courseId (data 為 null)，回傳空陣列以避免錯誤，但 hook 仍會執行
+                if (!courseId) return { parList: [], holeNumbers: [] };
+                const course = courseParData[courseId] || DEFAULT_COURSE_PAR['guanyinshan'];
                 let pars = [], nums = [];
-                if (data.startNine === 'out') { pars = [...course.out, ...course.in]; nums = [...Array(9).keys().map(i=>i+1), ...Array(9).keys().map(i=>i+10)]; } 
+                if (startNine === 'out') { pars = [...course.out, ...course.in]; nums = [...Array(9).keys().map(i=>i+1), ...Array(9).keys().map(i=>i+10)]; } 
                 else { pars = [...course.in, ...course.out]; nums = [...Array(9).keys().map(i=>i+10), ...Array(9).keys().map(i=>i+1)]; }
                 return { parList: pars, holeNumbers: nums };
-            }, [data.courseId, data.startNine, courseParData]);
+            }, [courseId, startNine, courseParData]);
 
             const golfResults = useMemo(() => {
                 const playerTotals = [0, 0, 0, 0];
                 const playerStrokes = [0, 0, 0, 0];
                 const holePoints = Array(18).fill(null).map(() => [0, 0, 0, 0]);
-                if (golfScores.length) {
+                if (golfScores.length && parList.length) {
                     golfScores.forEach((scores, hIdx) => {
                         const par = parList[hIdx];
                         const holeNo = holeNumbers[hIdx];
-                        const isGolden = holeNo === Number(data.goldenBallHole);
+                        const isGolden = holeNo === Number(goldenBallHole);
                         const isComplete = scores.every(s => s !== null && s !== '' && s > 0);
                         scores.forEach((s, pIdx) => { if(s) playerStrokes[pIdx] += Number(s); });
                         if (!isComplete) return;
@@ -486,7 +494,7 @@
                     });
                 }
                 return { playerTotals, playerStrokes, holePoints };
-            }, [golfScores, parList, holeNumbers, data.goldenBallHole]);
+            }, [golfScores, parList, holeNumbers, goldenBallHole]);
 
             const pointResults = useMemo(() => {
                 const totals = [0, 0, 0, 0];
@@ -495,11 +503,11 @@
                     holeRes = pointScores.map(row => {
                         const rowPts = [0, 0, 0, 0];
                         const winners = [];
-                        row.forEach((type, pIdx) => { if (type !== 'blank' && type !== 'none') winners.push({ idx: pIdx, val: data.pointValues[type] || 0 }); });
+                        row.forEach((type, pIdx) => { if (type !== 'blank' && type !== 'none') winners.push({ idx: pIdx, val: pointValues[type] || 0 }); });
                         row.forEach((myType, i) => {
                             if (myType === 'blank') return;
                             let change = 0;
-                            const myVal = data.pointValues[myType] || 0;
+                            const myVal = pointValues[myType] || 0;
                             if (myType !== 'none') { const validPlayersCount = row.filter(t => t !== 'blank').length; change += myVal * (validPlayersCount - 1); }
                             winners.forEach(w => { if (w.idx !== i) change -= w.val; });
                             rowPts[i] = change; totals[i] += change;
@@ -508,31 +516,34 @@
                     });
                 }
                 return { totals, holeRes };
-            }, [pointScores, data.pointValues]);
+            }, [pointScores, pointValues]);
 
             const teamResults = useMemo(() => {
                 const totals = [0, 0, 0, 0];
                 const holeDetails = [];
-                if (golfScores.length) {
+                if (golfScores.length && multipliers.length && parList.length) {
                     golfScores.forEach((scores, hIdx) => {
                         const par = parList[hIdx];
-                        const mult = data.multipliers[hIdx];
+                        const mult = multipliers[hIdx];
                         const result = calcTeamMatch(scores, par, mult);
                         holeDetails.push(result);
-                        if (result.diff !== 0) { const money = result.diff * data.teamStake; totals[0] += money; totals[1] += money; totals[2] -= money; totals[3] -= money; }
+                        if (result.diff !== 0) { const money = result.diff * teamStake; totals[0] += money; totals[1] += money; totals[2] -= money; totals[3] -= money; }
                     });
                 }
                 return { totals, holeDetails };
-            }, [golfScores, data.multipliers, data.teamStake, parList]);
+            }, [golfScores, multipliers, teamStake, parList]);
 
             const currentPar = parList[currentHoleIdx];
             const currentHoleNo = holeNumbers[currentHoleIdx];
-            const isGolden = Number(data.goldenBallHole) === currentHoleNo;
-            const currentTeamHoleData = teamResults.holeDetails[currentHoleIdx];
+            const isGolden = Number(goldenBallHole) === currentHoleNo;
+            const currentTeamHoleData = teamResults.holeDetails ? teamResults.holeDetails[currentHoleIdx] : null;
             const getLeader = (totals) => totals.map((s, i) => ({s, i})).sort((a,b) => b.s - a.s)[0];
             const golfLeader = getLeader(golfResults.playerTotals);
             const pointLeader = getLeader(pointResults.totals);
             const teamLeader = getLeader(teamResults.totals);
+
+            // --- Loading Check (Moved here to avoid Hook Error) ---
+            if (!data) return <div className="min-h-screen flex items-center justify-center"><div className="loader"></div></div>;
 
             return (
                 <div className="min-h-screen bg-gray-100 font-sans text-gray-900 pb-48">
@@ -542,7 +553,7 @@
                                 <div className="flex items-center gap-2">
                                     <button onClick={() => setShowSettings(true)} className="p-2 hover:bg-emerald-700 rounded-full transition"><Settings /></button>
                                     <div className="flex flex-col">
-                                        <div className="text-sm font-medium opacity-90">{courseList.find(c=>c.id===data.courseId)?.name}</div>
+                                        <div className="text-sm font-medium opacity-90">{courseList.find(c=>c.id===courseId)?.name}</div>
                                         <div onClick={copyRoomId} className="text-[10px] flex items-center gap-1 opacity-75 cursor-pointer hover:opacity-100">{connected ? <Wifi size={10} /> : <WifiOff size={10} />} 房號: {gameId} <Copy size={10}/></div>
                                     </div>
                                 </div>
@@ -578,14 +589,14 @@
                                             <button onClick={handleRandomMultiplier} className="w-8 h-8 flex items-center justify-center rounded-full bg-purple-500 text-white shadow-sm hover:bg-purple-600 active:scale-90 transition-all"><Dice /></button>
                                             <div className="w-px h-6 bg-indigo-200 mx-1"></div>
                                             <button onClick={() => handleMultiplierChange(-1)} className="w-8 h-8 rounded-full bg-white text-indigo-600 font-bold border border-indigo-200">-</button>
-                                            <span className="text-xl font-black text-indigo-900 w-8 text-center">{data.multipliers[currentHoleIdx]}</span>
+                                            <span className="text-xl font-black text-indigo-900 w-8 text-center">{multipliers[currentHoleIdx]}</span>
                                             <button onClick={() => handleMultiplierChange(1)} className="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold shadow">+</button>
                                         </div>
                                     </div>
                                 )}
 
                                 <div className="space-y-3">
-                                    {data.names.map((name, idx) => {
+                                    {names.map((name, idx) => {
                                         let displayTotal = mode === 'golf' ? golfResults.playerTotals[idx] : mode === 'point' ? pointResults.totals[idx] : teamResults.totals[idx];
                                         return (
                                             <div key={idx} className={`bg-white rounded-xl shadow-sm p-3 flex items-center justify-between border ${mode === 'team' && idx < 2 ? 'border-l-4 border-l-blue-500' : mode === 'team' ? 'border-l-4 border-l-orange-500' : 'border-gray-100'}`}>
@@ -619,7 +630,7 @@
                                     </div>
                                 )}
 
-                                {mode === 'team' && golfScores[currentHoleIdx].every(s => s) && (
+                                {mode === 'team' && golfScores[currentHoleIdx].every(s => s) && currentTeamHoleData && (
                                     <div className="mt-4 bg-white rounded-xl shadow-lg border border-indigo-200 overflow-hidden">
                                         <div className="bg-indigo-600 text-white p-2 text-center text-sm font-bold flex justify-between px-4"><span>AB 隊</span><span>VS</span><span>CD 隊</span></div>
                                         <div className="p-4 flex justify-between items-center">
@@ -628,20 +639,20 @@
                                             <div className="text-center"><div className="text-xs text-gray-500 mb-1">原始: {currentTeamHoleData.cdRaw}</div><div className={`text-3xl font-black ${currentTeamHoleData.diff < 0 ? 'text-red-500' : 'text-gray-800'}`}>{currentTeamHoleData.cdScore}</div></div>
                                         </div>
                                         {currentTeamHoleData.msg && <div className="bg-yellow-50 text-yellow-800 text-xs text-center py-1 border-t border-yellow-100">🔥 {currentTeamHoleData.msg}</div>}
-                                        <div className="bg-gray-50 p-3 text-center border-t"><span className="text-gray-500 text-sm">本洞結算: </span><span className={`text-lg font-bold ml-2 ${currentTeamHoleData.diff !== 0 ? 'text-red-600' : 'text-gray-400'}`}>{currentTeamHoleData.diff > 0 ? 'AB隊' : currentTeamHoleData.diff < 0 ? 'CD隊' : '平手'} {currentTeamHoleData.diff !== 0 && ` 贏 ${Math.abs(currentTeamHoleData.diff)}分 ($${Math.abs(currentTeamHoleData.diff) * data.teamStake})`}</span></div>
+                                        <div className="bg-gray-50 p-3 text-center border-t"><span className="text-gray-500 text-sm">本洞結算: </span><span className={`text-lg font-bold ml-2 ${currentTeamHoleData.diff !== 0 ? 'text-red-600' : 'text-gray-400'}`}>{currentTeamHoleData.diff > 0 ? 'AB隊' : currentTeamHoleData.diff < 0 ? 'CD隊' : '平手'} {currentTeamHoleData.diff !== 0 && ` 贏 ${Math.abs(currentTeamHoleData.diff)}分 ($${Math.abs(currentTeamHoleData.diff) * teamStake})`}</span></div>
                                     </div>
                                 )}
                             </>
                         ) : (
                             <div className="space-y-6">
                                 <div className="grid grid-cols-1 gap-4">
-                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Trophy /> 目前總戰績 (高爾夫)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{data.names.map((n, i) => <div key={i} className="flex flex-col p-2 bg-gray-50 rounded-lg"><span className="text-xs text-gray-500 truncate">{n}</span><span className="font-bold text-gray-800">{golfResults.playerStrokes[i]} 桿</span><span className={`text-xs ${golfResults.playerTotals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>{golfResults.playerTotals[i] > 0 ? '+' : ''}{golfResults.playerTotals[i]} 點</span></div>)}</div></div>
-                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Medal /> 金銀銅鐵 (點數)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{data.names.map((n, i) => <div key={i} className="flex flex-col p-2 bg-gray-50 rounded-lg"><span className="text-xs text-gray-500 truncate">{n}</span><span className={`font-bold ${pointResults.totals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>{pointResults.totals[i]}</span></div>)}</div></div>
-                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Users /> 團體對抗 (金額)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{data.names.map((n, i) => <div key={i} className={`flex flex-col p-2 rounded-lg ${i<2 ? 'bg-blue-50' : 'bg-orange-50'}`}><span className="text-xs text-gray-500 truncate">{n}</span><span className={`font-bold ${teamResults.totals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>${teamResults.totals[i]}</span></div>)}</div></div>
+                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Trophy /> 目前總戰績 (高爾夫)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{names.map((n, i) => <div key={i} className="flex flex-col p-2 bg-gray-50 rounded-lg"><span className="text-xs text-gray-500 truncate">{n}</span><span className="font-bold text-gray-800">{golfResults.playerStrokes[i]} 桿</span><span className={`text-xs ${golfResults.playerTotals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>{golfResults.playerTotals[i] > 0 ? '+' : ''}{golfResults.playerTotals[i]} 點</span></div>)}</div></div>
+                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Medal /> 金銀銅鐵 (點數)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{names.map((n, i) => <div key={i} className="flex flex-col p-2 bg-gray-50 rounded-lg"><span className="text-xs text-gray-500 truncate">{n}</span><span className={`font-bold ${pointResults.totals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>{pointResults.totals[i]}</span></div>)}</div></div>
+                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Users /> 團體對抗 (金額)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{names.map((n, i) => <div key={i} className={`flex flex-col p-2 rounded-lg ${i<2 ? 'bg-blue-50' : 'bg-orange-50'}`}><span className="text-xs text-gray-500 truncate">{n}</span><span className={`font-bold ${teamResults.totals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>${teamResults.totals[i]}</span></div>)}</div></div>
                                 </div>
                                 <div className="bg-white rounded-2xl shadow overflow-hidden border border-gray-200">
                                     <div className="bg-gray-50 p-2 text-center text-xs text-gray-500 font-bold uppercase">詳細桿數表</div>
-                                    <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50 border-b"><th className="p-2 sticky left-0 bg-gray-50">H</th>{data.names.map((n, i) => <th key={i} className="p-2 min-w-[50px]">{n.slice(0,1)}</th>)}</tr></thead><tbody className="divide-y">{parList.map((par, hIdx) => <tr key={hIdx} className={hIdx === currentHoleIdx ? 'bg-yellow-50' : ''}><td className="p-2 font-bold text-gray-500 sticky left-0 bg-white border-r text-center">{holeNumbers[hIdx]}</td>{data.names.map((_, pIdx) => <td key={pIdx} className="p-2 text-center font-bold text-gray-800">{golfScores[hIdx][pIdx] || '-'}</td>)}</tr>)}</tbody></table></div>
+                                    <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50 border-b"><th className="p-2 sticky left-0 bg-gray-50">H</th>{names.map((n, i) => <th key={i} className="p-2 min-w-[50px]">{n.slice(0,1)}</th>)}</tr></thead><tbody className="divide-y">{parList.map((par, hIdx) => <tr key={hIdx} className={hIdx === currentHoleIdx ? 'bg-yellow-50' : ''}><td className="p-2 font-bold text-gray-500 sticky left-0 bg-white border-r text-center">{holeNumbers[hIdx]}</td>{names.map((_, pIdx) => <td key={pIdx} className="p-2 text-center font-bold text-gray-800">{golfScores[hIdx][pIdx] || '-'}</td>)}</tr>)}</tbody></table></div>
                                 </div>
                             </div>
                         )}
@@ -649,7 +660,7 @@
 
                     <div className="fixed bottom-0 inset-x-0 bg-white border-t p-3 pb-6 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] md:pb-3 z-10">
                         <div className="max-w-md mx-auto grid grid-cols-4 gap-2">
-                            {data.names.map((name, i) => {
+                            {names.map((name, i) => {
                                 let total = mode === 'golf' ? golfResults.playerTotals[i] : mode === 'point' ? pointResults.totals[i] : teamResults.totals[i];
                                 let isLeading = (mode === 'golf' ? golfLeader.i : mode === 'point' ? pointLeader.i : teamLeader.i) === i && total > 0;
                                 return (
@@ -666,16 +677,16 @@
                     <Modal isOpen={showSettings} onClose={() => setShowSettings(false)} title="遊戲設定">
                         {!showCourseEditor ? (
                             <div className="space-y-6">
-                                <div className="space-y-2"><label className="text-sm font-bold text-gray-700">球員姓名</label><div className="grid grid-cols-2 gap-2">{data.names.map((n, i) => <input key={i} value={n} onChange={(e) => { const newNames = [...data.names]; newNames[i] = e.target.value; updateGame({ names: newNames }); }} className="border rounded px-2 py-1.5 text-sm" placeholder={`Player ${i+1}`} />)}</div></div>
+                                <div className="space-y-2"><label className="text-sm font-bold text-gray-700">球員姓名</label><div className="grid grid-cols-2 gap-2">{names.map((n, i) => <input key={i} value={n} onChange={(e) => { const newNames = [...names]; newNames[i] = e.target.value; updateGame({ names: newNames }); }} className="border rounded px-2 py-1.5 text-sm" placeholder={`Player ${i+1}`} />)}</div></div>
                                 <div className="space-y-4 pt-4 border-t">
-                                    <div><div className="flex justify-between items-center mb-1"><label className="text-sm font-bold text-gray-700">球場</label><button onClick={() => setShowCourseEditor(true)} className="text-xs flex items-center gap-1 text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded-full"><Plus /> 新增球場</button></div><select value={data.courseId} onChange={(e) => updateGame({ courseId: e.target.value })} className="w-full border rounded px-3 py-2 bg-white">{courseList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>{customCourses.find(c => c.id === data.courseId) && <button onClick={() => { if(confirm('確定要刪除？')) deleteCustomCourse(data.courseId); }} className="mt-2 text-xs text-red-500 flex items-center gap-1"><Trash2 /> 刪除球場</button>}</div>
+                                    <div><div className="flex justify-between items-center mb-1"><label className="text-sm font-bold text-gray-700">球場</label><button onClick={() => setShowCourseEditor(true)} className="text-xs flex items-center gap-1 text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded-full"><Plus /> 新增球場</button></div><select value={courseId} onChange={(e) => updateGame({ courseId: e.target.value })} className="w-full border rounded px-3 py-2 bg-white">{courseList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>{customCourses.find(c => c.id === courseId) && <button onClick={() => { if(confirm('確定要刪除？')) deleteCustomCourse(courseId); }} className="mt-2 text-xs text-red-500 flex items-center gap-1"><Trash2 /> 刪除球場</button>}</div>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div><label className="text-sm font-bold text-gray-700 block mb-1">前九</label><select value={data.startNine} onChange={(e) => updateGame({ startNine: e.target.value })} className="w-full border rounded px-3 py-2 bg-white"><option value="out">OUT (1-9)</option><option value="in">IN (10-18)</option></select></div>
-                                        <div><label className="text-sm font-bold text-gray-700 block mb-1">Golden Ball</label><select value={data.goldenBallHole} onChange={(e) => updateGame({ goldenBallHole: e.target.value })} className="w-full border rounded px-3 py-2 bg-white">{[...Array(18)].map((_,i) => { const h = data.startNine === 'out' ? i+1 : (i<9 ? i+10 : i-8); return <option key={i} value={holeNumbers[i]}>Hole {holeNumbers[i]}</option> })}</select></div>
+                                        <div><label className="text-sm font-bold text-gray-700 block mb-1">前九</label><select value={startNine} onChange={(e) => updateGame({ startNine: e.target.value })} className="w-full border rounded px-3 py-2 bg-white"><option value="out">OUT (1-9)</option><option value="in">IN (10-18)</option></select></div>
+                                        <div><label className="text-sm font-bold text-gray-700 block mb-1">Golden Ball</label><select value={goldenBallHole} onChange={(e) => updateGame({ goldenBallHole: e.target.value })} className="w-full border rounded px-3 py-2 bg-white">{[...Array(18)].map((_,i) => { const h = startNine === 'out' ? i+1 : (i<9 ? i+10 : i-8); return <option key={i} value={holeNumbers[i]}>Hole {holeNumbers[i]}</option> })}</select></div>
                                     </div>
                                 </div>
-                                <div className="space-y-4 pt-4 border-t"><label className="text-sm font-bold text-gray-700 block">團體賽每分金額</label><div className="flex items-center gap-2"><DollarSign /><input type="number" value={data.teamStake} onChange={(e) => updateGame({ teamStake: Number(e.target.value) })} className="border rounded px-3 py-2 w-full"/></div></div>
-                                <div className="space-y-4 pt-4 border-t"><label className="text-sm font-bold text-gray-700 block">金銀銅鐵點數設定</label><div className="grid grid-cols-3 gap-2 text-sm">{Object.keys(data.pointValues).map(k => <div key={k} className="flex flex-col"><span className="text-gray-500 uppercase text-xs">{k}</span><input type="number" value={data.pointValues[k]} onChange={(e) => updateGame({ pointValues: { ...data.pointValues, [k]: Number(e.target.value) } })} className="border rounded px-2 py-1"/></div>)}</div></div>
+                                <div className="space-y-4 pt-4 border-t"><label className="text-sm font-bold text-gray-700 block">團體賽每分金額</label><div className="flex items-center gap-2"><DollarSign /><input type="number" value={teamStake} onChange={(e) => updateGame({ teamStake: Number(e.target.value) })} className="border rounded px-3 py-2 w-full"/></div></div>
+                                <div className="space-y-4 pt-4 border-t"><label className="text-sm font-bold text-gray-700 block">金銀銅鐵點數設定</label><div className="grid grid-cols-3 gap-2 text-sm">{Object.keys(pointValues).map(k => <div key={k} className="flex flex-col"><span className="text-gray-500 uppercase text-xs">{k}</span><input type="number" value={pointValues[k]} onChange={(e) => updateGame({ pointValues: { ...pointValues, [k]: Number(e.target.value) } })} className="border rounded px-2 py-1"/></div>)}</div></div>
                                 <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
                                     <button onClick={() => setShowSettings(false)} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 shadow">完成設定</button>
                                     <button onClick={resetGame} className="w-full bg-white text-red-500 border border-red-200 py-3 rounded-xl font-bold hover:bg-red-50 flex items-center justify-center gap-2"><RotateCcw size={18} /> 開始新的一局 (清除成績)</button>
