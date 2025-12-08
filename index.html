@@ -233,7 +233,7 @@
         }
 
         // --- Settings Modal with Local State (Fix for linking bug & cursor jumping) ---
-        const SettingsModal = ({ isOpen, onClose, data, onSave, onDeleteCourse, courseList, customCourses, showCourseEditor, onAddCourse }) => {
+        const SettingsModal = ({ isOpen, onClose, data, onSave, onDeleteCourse, courseList, customCourses, showCourseEditor, onAddCourse, onReset, onLeave }) => {
             const [localNames, setLocalNames] = useState(data.names);
             const [localCourseId, setLocalCourseId] = useState(data.courseId);
             const [localStartNine, setLocalStartNine] = useState(data.startNine);
@@ -297,6 +297,8 @@
                             </div>
                             <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
                                 <button onClick={handleSave} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 shadow">完成設定</button>
+                                <button onClick={onReset} className="w-full bg-white text-red-500 border border-red-200 py-3 rounded-xl font-bold hover:bg-red-50 flex items-center justify-center gap-2"><RotateCcw size={18} /> 開始新的一局 (清除成績)</button>
+                                <button onClick={onLeave} className="w-full bg-gray-100 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-200 flex items-center justify-center gap-2 mt-2"><LogOut size={18} /> 回到大廳 / 建立新房間</button>
                             </div>
                         </div>
                     ) : null }
@@ -409,6 +411,10 @@
             const [courseList, setCourseList] = useState(DEFAULT_COURSES);
             const [courseParData, setCourseParData] = useState(DEFAULT_COURSE_PAR);
 
+            // Parsing
+            const golfScores = useMemo(() => data?.golfScores ? JSON.parse(data.golfScores) : [], [data?.golfScores]);
+            const pointScores = useMemo(() => data?.pointScores ? JSON.parse(data.pointScores) : [], [data?.pointScores]);
+
             // Sync
             useEffect(() => {
                 if (!gameId || !window.db) return;
@@ -450,18 +456,6 @@
             }, [gameId]);
 
             // Handlers
-            // ... (handlers will use data and derived state)
-
-            // --- Loading Check ---
-            if (!data) return <div className="min-h-screen flex items-center justify-center"><div className="loader"></div></div>;
-
-            // --- Define 'multipliers' here to fix ReferenceError ---
-            const multipliers = data.multipliers || [];
-
-            // --- Derived State Logic ---
-            const golfScores = data?.golfScores ? JSON.parse(data.golfScores) : [];
-            const pointScores = data?.pointScores ? JSON.parse(data.pointScores) : [];
-
             const handleGolfScoreChange = (pIdx, delta) => {
                 if(!golfScores.length) return;
                 const newScores = [...golfScores]; 
@@ -542,6 +536,9 @@
                 }
             };
 
+            if (!data) return <div className="min-h-screen flex items-center justify-center"><div className="loader"></div></div>;
+
+            const multipliers = data.multipliers || [];
 
             const { parList, holeNumbers } = (() => {
                 const courseId = data.courseId;
@@ -731,13 +728,13 @@
                         ) : (
                             <div className="space-y-6">
                                 <div className="grid grid-cols-1 gap-4">
-                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Trophy /> 目前總戰績 (高爾夫)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{data.names.map((n, i) => <div key={i} className="flex flex-col p-2 bg-gray-50 rounded-lg"><span className="text-xs text-gray-500 truncate">{n}</span><span className="font-bold text-gray-800">{golfResults.playerStrokes[i]} 桿</span><span className={`text-xs ${golfResults.playerTotals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>{golfResults.playerTotals[i] > 0 ? '+' : ''}{golfResults.playerTotals[i]} 點</span></div>)}</div></div>
-                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Medal /> 金銀銅鐵 (點數)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{data.names.map((n, i) => <div key={i} className="flex flex-col p-2 bg-gray-50 rounded-lg"><span className="text-xs text-gray-500 truncate">{n}</span><span className={`font-bold ${pointResults.totals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>{pointResults.totals[i]}</span></div>)}</div></div>
-                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Users /> 團體對抗 (金額)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{data.names.map((n, i) => <div key={i} className={`flex flex-col p-2 rounded-lg ${i<2 ? 'bg-blue-50' : 'bg-orange-50'}`}><span className="text-xs text-gray-500 truncate">{n}</span><span className={`font-bold ${teamResults.totals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>${teamResults.totals[i]}</span></div>)}</div></div>
+                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Trophy /> 目前總戰績 (高爾夫)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{names.map((n, i) => <div key={i} className="flex flex-col p-2 bg-gray-50 rounded-lg"><span className="text-xs text-gray-500 truncate">{n}</span><span className="font-bold text-gray-800">{golfResults.playerStrokes[i]} 桿</span><span className={`text-xs ${golfResults.playerTotals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>{golfResults.playerTotals[i] > 0 ? '+' : ''}{golfResults.playerTotals[i]} 點</span></div>)}</div></div>
+                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Medal /> 金銀銅鐵 (點數)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{names.map((n, i) => <div key={i} className="flex flex-col p-2 bg-gray-50 rounded-lg"><span className="text-xs text-gray-500 truncate">{n}</span><span className={`font-bold ${pointResults.totals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>{pointResults.totals[i]}</span></div>)}</div></div>
+                                    <div className="bg-white rounded-2xl shadow p-4 border border-gray-100"><h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Users /> 團體對抗 (金額)</h3><div className="grid grid-cols-4 gap-2 text-center text-sm">{names.map((n, i) => <div key={i} className={`flex flex-col p-2 rounded-lg ${i<2 ? 'bg-blue-50' : 'bg-orange-50'}`}><span className="text-xs text-gray-500 truncate">{n}</span><span className={`font-bold ${teamResults.totals[i] >= 0 ? 'text-red-500' : 'text-green-600'}`}>${teamResults.totals[i]}</span></div>)}</div></div>
                                 </div>
                                 <div className="bg-white rounded-2xl shadow overflow-hidden border border-gray-200">
                                     <div className="bg-gray-50 p-2 text-center text-xs text-gray-500 font-bold uppercase">詳細桿數表</div>
-                                    <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50 border-b"><th className="p-2 sticky left-0 bg-gray-50">H</th>{data.names.map((n, i) => <th key={i} className="p-2 min-w-[50px]">{n.slice(0,1)}</th>)}</tr></thead><tbody className="divide-y">{parList.map((par, hIdx) => <tr key={hIdx} className={hIdx === currentHoleIdx ? 'bg-yellow-50' : ''}><td className="p-2 font-bold text-gray-500 sticky left-0 bg-white border-r text-center">{holeNumbers[hIdx]}</td>{data.names.map((_, pIdx) => <td key={pIdx} className="p-2 text-center font-bold text-gray-800">{golfScores[hIdx][pIdx] || '-'}</td>)}</tr>)}</tbody></table></div>
+                                    <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50 border-b"><th className="p-2 sticky left-0 bg-gray-50">H</th>{names.map((n, i) => <th key={i} className="p-2 min-w-[50px]">{n.slice(0,1)}</th>)}</tr></thead><tbody className="divide-y">{parList.map((par, hIdx) => <tr key={hIdx} className={hIdx === currentHoleIdx ? 'bg-yellow-50' : ''}><td className="p-2 font-bold text-gray-500 sticky left-0 bg-white border-r text-center">{holeNumbers[hIdx]}</td>{names.map((_, pIdx) => <td key={pIdx} className="p-2 text-center font-bold text-gray-800">{golfScores[hIdx][pIdx] || '-'}</td>)}</tr>)}</tbody></table></div>
                                 </div>
                             </div>
                         )}
@@ -754,6 +751,8 @@
                         customCourses={customCourses}
                         showCourseEditor={showCourseEditor}
                         onAddCourse={() => setShowCourseEditor(true)}
+                        onReset={resetGame}
+                        onLeave={onLeave}
                     >
                         <CourseEditor onSave={(newData) => { saveCustomCourse(newData); setShowCourseEditor(false); }} onCancel={() => setShowCourseEditor(false)} />
                     </SettingsModal>
