@@ -37,7 +37,6 @@
         import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
         // ⚠️ 請去 Firebase Console -> Project Settings -> General -> 下方 Your apps 複製 Config
-        // 如果您還沒設定，請保持原樣，APP 會提示您設定
         const firebaseConfig = {
             apiKey: "AIzaSyDfgJarW3fJn6t60tbEWmYBRsJ2CFUPHPQ",
             authDomain: "qpc-golf-game-e6676.firebaseapp.com",
@@ -52,7 +51,6 @@
         let app, db, auth;
         let isConfigured = false;
 
-        // 簡單檢查使用者是否已替換了預設值
         if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
             try {
                 app = initializeApp(firebaseConfig);
@@ -69,18 +67,14 @@
             }
         }
 
-        // 將 Firebase 函數掛載到 window 以便 Babel 內的 React 使用
         window.db = db;
         window.auth = auth;
         window.isFirebaseConfigured = isConfigured;
         window.firestore = { doc, setDoc, getDoc, updateDoc, onSnapshot, collection };
-        
-        // 注意：這裡不執行 render，改由下方的 Babel script 執行，確保元件已載入
     </script>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo, useCallback, useRef } = React;
-        // 確保從 window 取得 firestore 方法時不會報錯 (若未設定則為 undefined)
         const firestore = window.firestore || {};
         const { doc, setDoc, getDoc, updateDoc, onSnapshot, collection } = firestore;
         const db = window.db;
@@ -138,7 +132,7 @@
             { id: 'none', label: '無', val: 0, color: 'bg-gray-200 text-gray-500' },
         ];
 
-        // --- 核心邏輯 (相同) ---
+        // --- 核心邏輯 ---
         function calcPairPointsByRules(a, b, par) {
             if (a === null || b === null || a === '' || b === '') return 0;
             const aRel = a - par;
@@ -160,21 +154,31 @@
             const s = scores.map(Number);
             let abRaw = s[0] < s[1] ? s[0] * 10 + s[1] : s[1] * 10 + s[0];
             let cdRaw = s[2] < s[3] ? s[2] * 10 + s[3] : s[3] * 10 + s[2];
-            const getStatus = (score) => { if (score <= par - 2) return 'eagle'; if (score === par - 1) return 'birdie'; return 'normal'; };
+            
+            const getStatus = (score) => {
+                if (score <= par - 2) return 'eagle';
+                if (score === par - 1) return 'birdie';
+                return 'normal';
+            };
             const abStatuses = [getStatus(s[0]), getStatus(s[1])];
             const cdStatuses = [getStatus(s[2]), getStatus(s[3])];
+            
             const abHasEagle = abStatuses.includes('eagle');
             const abHasBirdie = abStatuses.includes('birdie');
             const cdHasEagle = cdStatuses.includes('eagle');
             const cdHasBirdie = cdStatuses.includes('birdie');
+            
             let abFinal = abRaw;
             let cdFinal = cdRaw;
             let finalMultiplier = multiplier;
             let msgParts = [];
+
             if (abHasEagle) { cdFinal = parseInt(String(cdRaw).split('').reverse().join(''), 10); finalMultiplier *= 2; msgParts.push("AB Eagle! CD互換且加倍"); }
             else if (abHasBirdie) { cdFinal = parseInt(String(cdRaw).split('').reverse().join(''), 10); msgParts.push("AB Birdie! CD互換"); }
+
             if (cdHasEagle) { abFinal = parseInt(String(abRaw).split('').reverse().join(''), 10); finalMultiplier *= 2; msgParts.push("CD Eagle! AB互換且加倍"); }
             else if (cdHasBirdie) { abFinal = parseInt(String(abRaw).split('').reverse().join(''), 10); msgParts.push("CD Birdie! AB互換"); }
+
             const diff = (cdFinal - abFinal) * finalMultiplier;
             return { diff, abScore: abFinal, cdScore: cdFinal, abRaw, cdRaw, finalMultiplier, msg: msgParts.join(' | ') };
         }
@@ -273,10 +277,12 @@
             const createGame = async () => {
                 setLoading(true);
                 const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                // 修正：使用 JSON.stringify 存儲陣列，避開 Firestore 巢狀陣列限制
                 const initialData = {
                     names: ['球員 A', '球員 B', '球員 C', '球員 D'],
-                    golfScores: Array(18).fill([null, null, null, null]),
-                    pointScores: Array(18).fill(['blank', 'blank', 'blank', 'blank']),
+                    // 修正 Bug: 使用 Array.from 避免引用同一個陣列
+                    golfScores: JSON.stringify(Array.from({length: 18}, () => [null, null, null, null])),
+                    pointScores: JSON.stringify(Array.from({length: 18}, () => ['blank', 'blank', 'blank', 'blank'])),
                     multipliers: Array(18).fill(1),
                     courseId: 'guanyinshan',
                     startNine: 'out',
@@ -330,6 +336,10 @@
             const [courseList, setCourseList] = useState(DEFAULT_COURSES);
             const [courseParData, setCourseParData] = useState(DEFAULT_COURSE_PAR);
 
+            // 解析資料 (Parse JSON strings back to arrays)
+            const golfScores = useMemo(() => data && data.golfScores ? JSON.parse(data.golfScores) : [], [data]);
+            const pointScores = useMemo(() => data && data.pointScores ? JSON.parse(data.pointScores) : [], [data]);
+
             // 1. Sync Logic
             useEffect(() => {
                 if (!gameId || !window.db) return;
@@ -371,27 +381,32 @@
                 updateDoc(doc(window.db, "games", gameId), { ...updates, updatedAt: new Date() }).catch(e => console.error("Write failed", e));
             }, [gameId]);
 
-            // Handlers (Adapted for Firebase)
+            // Handlers (Adapted for Serialized Data)
             const handleGolfScoreChange = (pIdx, delta) => {
-                if(!data) return;
-                const newScores = [...data.golfScores];
+                if(!golfScores.length) return;
+                const newScores = [...golfScores]; // Shallow copy of outer array
                 let currentVal = newScores[currentHoleIdx][pIdx];
                 if (currentVal === null || currentVal === '') currentVal = parList[currentHoleIdx];
                 else currentVal = Number(currentVal) + delta;
                 if (currentVal < 1) currentVal = 1;
+                
+                // Copy inner array to avoid mutation
                 newScores[currentHoleIdx] = [...newScores[currentHoleIdx]];
                 newScores[currentHoleIdx][pIdx] = currentVal;
-                updateGame({ golfScores: newScores });
+                
+                updateGame({ golfScores: JSON.stringify(newScores) });
             };
 
             const handlePointToggle = (pIdx) => {
-                if(!data) return;
+                if(!pointScores.length) return;
                 const types = POINT_TYPES.map(t => t.id);
-                const nextIdx = (types.indexOf(data.pointScores[currentHoleIdx][pIdx]) + 1) % types.length;
-                const newScores = [...data.pointScores];
+                const nextIdx = (types.indexOf(pointScores[currentHoleIdx][pIdx]) + 1) % types.length;
+                
+                const newScores = [...pointScores];
                 newScores[currentHoleIdx] = [...newScores[currentHoleIdx]];
                 newScores[currentHoleIdx][pIdx] = types[nextIdx];
-                updateGame({ pointScores: newScores });
+                
+                updateGame({ pointScores: JSON.stringify(newScores) });
             };
 
             const handleMultiplierChange = (delta) => {
@@ -422,8 +437,8 @@
             const resetGame = () => {
                 if (!confirm('確定要清除所有成績重新開始嗎？')) return;
                 updateGame({
-                    golfScores: Array(18).fill([null, null, null, null]),
-                    pointScores: Array(18).fill(['blank', 'blank', 'blank', 'blank']),
+                    golfScores: JSON.stringify(Array.from({length: 18}, () => [null, null, null, null])),
+                    pointScores: JSON.stringify(Array.from({length: 18}, () => ['blank', 'blank', 'blank', 'blank'])),
                     multipliers: Array(18).fill(1)
                 });
                 setCurrentHoleIdx(0);
@@ -451,57 +466,64 @@
                 const playerTotals = [0, 0, 0, 0];
                 const playerStrokes = [0, 0, 0, 0];
                 const holePoints = Array(18).fill(null).map(() => [0, 0, 0, 0]);
-                data.golfScores.forEach((scores, hIdx) => {
-                    const par = parList[hIdx];
-                    const holeNo = holeNumbers[hIdx];
-                    const isGolden = holeNo === Number(data.goldenBallHole);
-                    const isComplete = scores.every(s => s !== null && s !== '' && s > 0);
-                    scores.forEach((s, pIdx) => { if(s) playerStrokes[pIdx] += Number(s); });
-                    if (!isComplete) return;
-                    const pts = [0, 0, 0, 0];
-                    for (let i = 0; i < 4; i++) {
-                        for (let j = i + 1; j < 4; j++) {
-                            let p = calcPairPointsByRules(scores[i], scores[j], par);
-                            if (isGolden) { if (Number(scores[i]) < Number(scores[j])) p += 1; else if (Number(scores[j]) < Number(scores[i])) p -= 1; }
-                            pts[i] += p; pts[j] -= p;
+                if (golfScores.length) {
+                    golfScores.forEach((scores, hIdx) => {
+                        const par = parList[hIdx];
+                        const holeNo = holeNumbers[hIdx];
+                        const isGolden = holeNo === Number(data.goldenBallHole);
+                        const isComplete = scores.every(s => s !== null && s !== '' && s > 0);
+                        scores.forEach((s, pIdx) => { if(s) playerStrokes[pIdx] += Number(s); });
+                        if (!isComplete) return;
+                        const pts = [0, 0, 0, 0];
+                        for (let i = 0; i < 4; i++) {
+                            for (let j = i + 1; j < 4; j++) {
+                                let p = calcPairPointsByRules(scores[i], scores[j], par);
+                                if (isGolden) { if (Number(scores[i]) < Number(scores[j])) p += 1; else if (Number(scores[j]) < Number(scores[i])) p -= 1; }
+                                pts[i] += p; pts[j] -= p;
+                            }
                         }
-                    }
-                    pts.forEach((p, i) => { holePoints[hIdx][i] = p; playerTotals[i] += p; });
-                });
+                        pts.forEach((p, i) => { holePoints[hIdx][i] = p; playerTotals[i] += p; });
+                    });
+                }
                 return { playerTotals, playerStrokes, holePoints };
-            }, [data.golfScores, parList, holeNumbers, data.goldenBallHole]);
+            }, [golfScores, parList, holeNumbers, data.goldenBallHole]);
 
             const pointResults = useMemo(() => {
                 const totals = [0, 0, 0, 0];
-                const holeRes = data.pointScores.map(row => {
-                    const rowPts = [0, 0, 0, 0];
-                    const winners = [];
-                    row.forEach((type, pIdx) => { if (type !== 'blank' && type !== 'none') winners.push({ idx: pIdx, val: data.pointValues[type] || 0 }); });
-                    row.forEach((myType, i) => {
-                        if (myType === 'blank') return;
-                        let change = 0;
-                        const myVal = data.pointValues[myType] || 0;
-                        if (myType !== 'none') { const validPlayersCount = row.filter(t => t !== 'blank').length; change += myVal * (validPlayersCount - 1); }
-                        winners.forEach(w => { if (w.idx !== i) change -= w.val; });
-                        rowPts[i] = change; totals[i] += change;
+                let holeRes = [];
+                if (pointScores.length) {
+                    holeRes = pointScores.map(row => {
+                        const rowPts = [0, 0, 0, 0];
+                        const winners = [];
+                        row.forEach((type, pIdx) => { if (type !== 'blank' && type !== 'none') winners.push({ idx: pIdx, val: data.pointValues[type] || 0 }); });
+                        row.forEach((myType, i) => {
+                            if (myType === 'blank') return;
+                            let change = 0;
+                            const myVal = data.pointValues[myType] || 0;
+                            if (myType !== 'none') { const validPlayersCount = row.filter(t => t !== 'blank').length; change += myVal * (validPlayersCount - 1); }
+                            winners.forEach(w => { if (w.idx !== i) change -= w.val; });
+                            rowPts[i] = change; totals[i] += change;
+                        });
+                        return rowPts;
                     });
-                    return rowPts;
-                });
+                }
                 return { totals, holeRes };
-            }, [data.pointScores, data.pointValues]);
+            }, [pointScores, data.pointValues]);
 
             const teamResults = useMemo(() => {
                 const totals = [0, 0, 0, 0];
                 const holeDetails = [];
-                data.golfScores.forEach((scores, hIdx) => {
-                    const par = parList[hIdx];
-                    const mult = data.multipliers[hIdx];
-                    const result = calcTeamMatch(scores, par, mult);
-                    holeDetails.push(result);
-                    if (result.diff !== 0) { const money = result.diff * data.teamStake; totals[0] += money; totals[1] += money; totals[2] -= money; totals[3] -= money; }
-                });
+                if (golfScores.length) {
+                    golfScores.forEach((scores, hIdx) => {
+                        const par = parList[hIdx];
+                        const mult = data.multipliers[hIdx];
+                        const result = calcTeamMatch(scores, par, mult);
+                        holeDetails.push(result);
+                        if (result.diff !== 0) { const money = result.diff * data.teamStake; totals[0] += money; totals[1] += money; totals[2] -= money; totals[3] -= money; }
+                    });
+                }
                 return { totals, holeDetails };
-            }, [data.golfScores, data.multipliers, data.teamStake, parList]);
+            }, [golfScores, data.multipliers, data.teamStake, parList]);
 
             const currentPar = parList[currentHoleIdx];
             const currentHoleNo = holeNumbers[currentHoleIdx];
@@ -572,15 +594,15 @@
                                                     <span className={`text-xs font-mono font-bold ${displayTotal >= 0 ? 'text-red-500' : 'text-green-600'}`}>{mode === 'team' && '$'}{displayTotal > 0 ? '+' : ''}{displayTotal}</span>
                                                 </div>
                                                 {mode === 'point' ? (
-                                                    <button onClick={() => handlePointToggle(idx)} className={`flex-1 ml-4 py-3 px-4 rounded-xl border-2 transition-all active:scale-95 flex justify-between items-center ${POINT_TYPES.find(t=>t.id === data.pointScores[currentHoleIdx][idx])?.color}`}>
-                                                        <span className="font-bold text-lg">{POINT_TYPES.find(t=>t.id === data.pointScores[currentHoleIdx][idx])?.label}</span>
-                                                        <span className="text-xs opacity-60">{POINT_TYPES.find(t=>t.id === data.pointScores[currentHoleIdx][idx])?.val}</span>
+                                                    <button onClick={() => handlePointToggle(idx)} className={`flex-1 ml-4 py-3 px-4 rounded-xl border-2 transition-all active:scale-95 flex justify-between items-center ${POINT_TYPES.find(t=>t.id === pointScores[currentHoleIdx][idx])?.color}`}>
+                                                        <span className="font-bold text-lg">{POINT_TYPES.find(t=>t.id === pointScores[currentHoleIdx][idx])?.label}</span>
+                                                        <span className="text-xs opacity-60">{POINT_TYPES.find(t=>t.id === pointScores[currentHoleIdx][idx])?.val}</span>
                                                     </button>
                                                 ) : (
                                                     <div className="flex items-center gap-3">
                                                         <button onClick={() => handleGolfScoreChange(idx, -1)} className="w-12 h-12 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xl flex items-center justify-center active:scale-95 transition">-</button>
-                                                        <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center border-2 ${!data.golfScores[currentHoleIdx][idx] ? 'border-gray-200 bg-gray-50' : 'border-emerald-500 bg-emerald-50 text-emerald-800'}`}>
-                                                            <span className="text-2xl font-bold">{data.golfScores[currentHoleIdx][idx] || '-'}</span>
+                                                        <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center border-2 ${!golfScores[currentHoleIdx][idx] ? 'border-gray-200 bg-gray-50' : 'border-emerald-500 bg-emerald-50 text-emerald-800'}`}>
+                                                            <span className="text-2xl font-bold">{golfScores[currentHoleIdx][idx] || '-'}</span>
                                                         </div>
                                                         <button onClick={() => handleGolfScoreChange(idx, 1)} className="w-12 h-12 rounded-full bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-xl flex items-center justify-center active:scale-95 transition">+</button>
                                                     </div>
@@ -590,14 +612,14 @@
                                     })}
                                 </div>
 
-                                {mode === 'golf' && data.golfScores[currentHoleIdx].every(s => s) && (
+                                {mode === 'golf' && golfScores[currentHoleIdx].every(s => s) && (
                                     <div className="mt-4 bg-emerald-50 rounded-xl p-3 border border-emerald-100">
                                         <h4 className="text-center text-xs text-emerald-600 font-bold uppercase tracking-wider mb-2">本洞對戰 (比洞)</h4>
                                         <div className="grid grid-cols-4 text-center">{golfResults.holePoints[currentHoleIdx].map((pt, i) => <div key={i} className={`font-bold ${pt > 0 ? 'text-red-500' : pt < 0 ? 'text-green-600' : 'text-gray-400'}`}>{pt > 0 ? '+' : ''}{pt}</div>)}</div>
                                     </div>
                                 )}
 
-                                {mode === 'team' && data.golfScores[currentHoleIdx].every(s => s) && (
+                                {mode === 'team' && golfScores[currentHoleIdx].every(s => s) && (
                                     <div className="mt-4 bg-white rounded-xl shadow-lg border border-indigo-200 overflow-hidden">
                                         <div className="bg-indigo-600 text-white p-2 text-center text-sm font-bold flex justify-between px-4"><span>AB 隊</span><span>VS</span><span>CD 隊</span></div>
                                         <div className="p-4 flex justify-between items-center">
@@ -619,7 +641,7 @@
                                 </div>
                                 <div className="bg-white rounded-2xl shadow overflow-hidden border border-gray-200">
                                     <div className="bg-gray-50 p-2 text-center text-xs text-gray-500 font-bold uppercase">詳細桿數表</div>
-                                    <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50 border-b"><th className="p-2 sticky left-0 bg-gray-50">H</th>{data.names.map((n, i) => <th key={i} className="p-2 min-w-[50px]">{n.slice(0,1)}</th>)}</tr></thead><tbody className="divide-y">{parList.map((par, hIdx) => <tr key={hIdx} className={hIdx === currentHoleIdx ? 'bg-yellow-50' : ''}><td className="p-2 font-bold text-gray-500 sticky left-0 bg-white border-r text-center">{holeNumbers[hIdx]}</td>{data.names.map((_, pIdx) => <td key={pIdx} className="p-2 text-center font-bold text-gray-800">{data.golfScores[hIdx][pIdx] || '-'}</td>)}</tr>)}</tbody></table></div>
+                                    <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="bg-gray-50 border-b"><th className="p-2 sticky left-0 bg-gray-50">H</th>{data.names.map((n, i) => <th key={i} className="p-2 min-w-[50px]">{n.slice(0,1)}</th>)}</tr></thead><tbody className="divide-y">{parList.map((par, hIdx) => <tr key={hIdx} className={hIdx === currentHoleIdx ? 'bg-yellow-50' : ''}><td className="p-2 font-bold text-gray-500 sticky left-0 bg-white border-r text-center">{holeNumbers[hIdx]}</td>{data.names.map((_, pIdx) => <td key={pIdx} className="p-2 text-center font-bold text-gray-800">{golfScores[hIdx][pIdx] || '-'}</td>)}</tr>)}</tbody></table></div>
                                 </div>
                             </div>
                         )}
