@@ -251,8 +251,8 @@
                                 <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">或</span></div>
                             </div>
                             <div className="flex gap-2">
-                                {/* 修正：使用 type="tel" 彈出數字鍵盤，maxLength 改為 4 */}
-                                <input type="tel" pattern="\d*" value={roomId} onChange={e => setRoomId(e.target.value.replace(/\D/g, ''))} placeholder="輸入4位數代碼" maxLength={4} className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 text-center text-xl font-bold tracking-widest focus:border-emerald-500 focus:outline-none" />
+                                {/* 修正：輸入框限制為 3 碼，placeholder 提示 */}
+                                <input type="tel" pattern="\d*" value={roomId} onChange={e => setRoomId(e.target.value.replace(/\D/g, ''))} placeholder="輸入3位數代碼" maxLength={3} className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2 text-center text-xl font-bold tracking-widest focus:border-emerald-500 focus:outline-none" />
                                 <button onClick={() => roomId && onJoin(roomId)} disabled={!roomId} className="bg-gray-800 text-white px-6 rounded-xl font-bold hover:bg-gray-900 disabled:opacity-50">加入</button>
                             </div>
                         </div>
@@ -274,8 +274,13 @@
 
             const createGame = async () => {
                 setLoading(true);
-                // 修正：產生 4 位數純數字 ID (1000 - 9999)
-                const newId = Math.floor(1000 + Math.random() * 9000).toString();
+                // 修正：產生 3 位數純數字 ID，且排除數字 4
+                const digits = ['0', '1', '2', '3', '5', '6', '7', '8', '9'];
+                let newId = '';
+                for(let i=0; i<3; i++) {
+                    newId += digits[Math.floor(Math.random() * digits.length)];
+                }
+                
                 // 修正：使用 JSON.stringify 存儲陣列，避開 Firestore 巢狀陣列限制
                 const initialData = {
                     names: ['球員 A', '球員 B', '球員 C', '球員 D'],
@@ -655,22 +660,6 @@
                                 </div>
                             </div>
                         )}
-                    </div>
-
-                    <div className="fixed bottom-0 inset-x-0 bg-white border-t p-3 pb-6 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] md:pb-3 z-10">
-                        <div className="max-w-md mx-auto grid grid-cols-4 gap-2">
-                            {names.map((name, i) => {
-                                let total = mode === 'golf' ? golfResults.playerTotals[i] : mode === 'point' ? pointResults.totals[i] : teamResults.totals[i];
-                                let isLeading = (mode === 'golf' ? golfLeader.i : mode === 'point' ? pointLeader.i : teamLeader.i) === i && total > 0;
-                                return (
-                                    <div key={i} className={`flex flex-col items-center p-1 rounded-lg ${isLeading ? 'bg-yellow-50' : ''}`}>
-                                        <span className="text-[10px] text-gray-500 truncate w-full text-center">{name}</span>
-                                        <span className={`font-bold text-sm md:text-base ${total > 0 ? 'text-red-500' : total < 0 ? 'text-green-600' : 'text-gray-400'}`}>{mode === 'team' && '$'}{total > 0 ? '+' : ''}{total}</span>
-                                        {isLeading && <Trophy />}
-                                    </div>
-                                )
-                            })}
-                        </div>
                     </div>
 
                     <Modal isOpen={showSettings} onClose={() => setShowSettings(false)} title="遊戲設定">
