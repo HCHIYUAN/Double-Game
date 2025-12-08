@@ -31,12 +31,11 @@
     <div id="root"></div>
 
     <script type="module">
-        // --- 1. Firebase 設定區 (請在此填入您的資料) ---
+        // --- 1. Firebase 設定區 ---
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot, collection } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
         import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
-        // ⚠️ 請去 Firebase Console -> Project Settings -> General -> 下方 Your apps 複製 Config
         const firebaseConfig = {
             apiKey: "AIzaSyDfgJarW3fJn6t60tbEWmYBRsJ2CFUPHPQ",
             authDomain: "qpc-golf-game-e6676.firebaseapp.com",
@@ -47,7 +46,6 @@
             measurementId: "G-FGW1F77JRS"
         };
 
-        // 初始化 Firebase
         let app, db, auth;
         let isConfigured = false;
 
@@ -58,12 +56,10 @@
                 auth = getAuth(app);
                 signInAnonymously(auth).catch((e) => {
                     console.error("Firebase 登入失敗:", e);
-                    window.firebaseError = e.message;
                 }); 
                 isConfigured = true;
             } catch (e) {
                 console.error("Firebase 初始化失敗:", e);
-                window.firebaseError = e.message;
             }
         }
 
@@ -98,6 +94,7 @@
         const Wifi = (p) => <IconBase {...p} d={<><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></>} />;
         const WifiOff = (p) => <IconBase {...p} d={<><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></>} />;
         const Copy = (p) => <IconBase {...p} d={<><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>} />;
+        const LogOut = (p) => <IconBase {...p} d={<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>} />;
 
         // --- 資料設定 ---
         const DEFAULT_COURSE_PAR = {
@@ -308,7 +305,7 @@
             };
 
             const leaveGame = () => {
-                if(confirm("確定要離開房間嗎？")) {
+                if(confirm("確定要離開房間嗎？\n\n離開後，若要再次進入請重新輸入房間代碼。")) {
                     setGameId(null);
                     localStorage.removeItem('golf_game_id');
                 }
@@ -690,7 +687,7 @@
                                 <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
                                     <button onClick={() => setShowSettings(false)} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 shadow">完成設定</button>
                                     <button onClick={resetGame} className="w-full bg-white text-red-500 border border-red-200 py-3 rounded-xl font-bold hover:bg-red-50 flex items-center justify-center gap-2"><RotateCcw size={18} /> 開始新的一局 (清除成績)</button>
-                                    <button onClick={onLeave} className="w-full text-gray-400 text-xs py-2 hover:text-gray-600">離開房間 (清除連線)</button>
+                                    <button onClick={onLeave} className="w-full bg-gray-100 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-200 flex items-center justify-center gap-2 mt-2"><LogOut size={18} /> 回到大廳 / 建立新房間</button>
                                 </div>
                             </div>
                         ) : (
