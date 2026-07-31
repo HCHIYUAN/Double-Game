@@ -107,6 +107,10 @@
             jianan: { out: [4,5,4,4,3,4,4,3,5], in: [4,4,3,4,3,5,4,5,4] },
             zhongluhe: { out: [5,4,3,4,4,3,4,5,4], in: [4,4,4,5,3,4,4,3,5] },
             tashee: { out: [5,3,4,4,5,4,4,4,3], in: [4,4,3,4,5,4,4,5,3] },
+            // 林口球場 (27 洞 3 區, 各區 Par 36) - 依常見出場組合分成 3 個 18 洞
+            linkou_es: { out: [5,4,4,5,3,4,4,3,4], in: [5,4,4,3,4,4,5,3,4] }, // 東 (Out) + 南 (In)
+            linkou_ew: { out: [5,4,4,5,3,4,4,3,4], in: [4,4,3,5,4,4,3,5,4] }, // 東 (Out) + 西 (In)
+            linkou_sw: { out: [5,4,4,3,4,4,5,3,4], in: [4,4,3,5,4,4,3,5,4] }, // 南 (Out) + 西 (In)
         };
 
         const DEFAULT_COURSES = [
@@ -118,6 +122,9 @@
             { id: 'jianan', name: '嘉南球場' },
             { id: 'zhongluhe', name: '棕梠湖球場' },
             { id: 'tashee', name: '大溪球場 (東/西)' },
+            { id: 'linkou_es', name: '林口球場 (東/南)' },
+            { id: 'linkou_ew', name: '林口球場 (東/西)' },
+            { id: 'linkou_sw', name: '林口球場 (南/西)' },
         ];
 
         const POINT_TYPES = [
@@ -235,7 +242,8 @@
         }
 
         // --- Settings Modal with Local State (Fix for linking bug & cursor jumping) ---
-        const SettingsModal = ({ isOpen, onClose, data, onSave, onDeleteCourse, courseList, customCourses, showCourseEditor, onAddCourse, onReset, onLeave }) => {
+        // FIX: 加入 children prop 並在 showCourseEditor=true 時渲染 children
+        const SettingsModal = ({ isOpen, onClose, data, onSave, onDeleteCourse, courseList, customCourses, showCourseEditor, onAddCourse, onReset, onLeave, children }) => {
             const [localNames, setLocalNames] = useState(data.names);
             const [localPlayerCount, setLocalPlayerCount] = useState(data.playerCount || 4);
             const [localCourseId, setLocalCourseId] = useState(data.courseId);
@@ -274,7 +282,7 @@
             const holeNumbers = localStartNine === 'out' ? [1,2,3,4,5,6,7,8,9] : [10,11,12,13,14,15,16,17,18];
 
             return (
-                <Modal isOpen={isOpen} onClose={onClose} title="遊戲設定">
+                <Modal isOpen={isOpen} onClose={onClose} title={showCourseEditor ? "新增自訂球場" : "遊戲設定"}>
                     {!showCourseEditor ? (
                         <div className="space-y-6">
                             <div className="space-y-2">
@@ -316,7 +324,7 @@
                                 <button onClick={onLeave} className="w-full bg-gray-100 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-200 flex items-center justify-center gap-2 mt-2"><LogOut size={18} /> 回到大廳 / 建立新房間</button>
                             </div>
                         </div>
-                    ) : null }
+                    ) : children }
                 </Modal>
             );
         };
