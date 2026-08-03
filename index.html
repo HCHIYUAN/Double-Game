@@ -700,6 +700,11 @@
             const abTeamMoney = (teamResults.totals[0] || 0) + (teamResults.totals[1] || 0);
             const cdTeamMoney = (teamResults.totals[2] || 0) + (teamResults.totals[3] || 0);
 
+            // 隊名：取每位球員姓名首字 (王小明+陳大 → 王陳；Herma+Richard → HR)
+            const firstChar = (n) => (n || '').trim().charAt(0) || '?';
+            const abName = playerCount >= 4 ? firstChar(names[0]) + firstChar(names[1]) : 'AB';
+            const cdName = playerCount >= 4 ? firstChar(names[2]) + firstChar(names[3]) : 'CD';
+
             const getLeader = (totals) => totals.map((s, i) => ({s, i})).slice(0, playerCount).sort((a,b) => b.s - a.s)[0];
             const golfLeader = getLeader(golfResults.playerTotals);
             const pointLeader = getLeader(pointResults.totals);
@@ -814,7 +819,7 @@
                                         return (
                                             <div key={idx} className={`bg-white rounded-xl shadow-sm p-3 flex items-center justify-between border ${mode === 'team' && playerCount === 4 && idx < 2 ? 'border-l-4 border-l-blue-500' : mode === 'team' && playerCount === 4 ? 'border-l-4 border-l-orange-500' : 'border-gray-100'}`}>
                                                 <div className="flex flex-col min-w-[80px]">
-                                                    <span className="font-bold text-gray-800 truncate flex items-center gap-1">{name} {mode === 'team' && playerCount === 4 && <span className={`text-[10px] px-1 rounded ${idx < 2 ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{idx < 2 ? 'AB' : 'CD'}</span>}</span>
+                                                    <span className="font-bold text-gray-800 truncate flex items-center gap-1">{name} {mode === 'team' && playerCount === 4 && <span className={`text-[10px] px-1 rounded ${idx < 2 ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{idx < 2 ? abName : cdName}</span>}</span>
                                                     <span className={`text-xs font-mono font-bold ${displayTotal >= 0 ? 'text-red-500' : 'text-green-600'}`}>{mode === 'team' && '$'}{displayTotal > 0 ? '+' : ''}{displayTotal}</span>
                                                 </div>
                                                 {mode === 'point' ? (
@@ -845,14 +850,14 @@
 
                                 {mode === 'team' && playerCount === 4 && golfScores[currentHoleIdx].every(s => s) && currentTeamHoleData && (
                                     <div className="mt-4 bg-white rounded-xl shadow-lg border border-indigo-200 overflow-hidden">
-                                        <div className="bg-indigo-600 text-white p-2 text-center text-sm font-bold flex justify-between px-4"><span>AB 隊</span><span>VS</span><span>CD 隊</span></div>
+                                        <div className="bg-indigo-600 text-white p-2 text-center text-sm font-bold flex justify-between px-4"><span>{abName} 隊</span><span>VS</span><span>{cdName} 隊</span></div>
                                         <div className="p-4 flex justify-between items-center">
                                             <div className="text-center"><div className="text-xs text-gray-500 mb-1">原始: {currentTeamHoleData.abRaw}</div><div className={`text-3xl font-black ${currentTeamHoleData.diff > 0 ? 'text-red-500' : 'text-gray-800'}`}>{currentTeamHoleData.abScore}</div></div>
                                             <div className="flex flex-col items-center"><span className="text-xs text-indigo-500 font-bold bg-indigo-50 px-2 py-1 rounded-full mb-1">x{currentTeamHoleData.finalMultiplier}</span><span className="text-xl font-bold text-gray-400">Diff: {Math.abs(currentTeamHoleData.abScore - currentTeamHoleData.cdScore)}</span></div>
                                             <div className="text-center"><div className="text-xs text-gray-500 mb-1">原始: {currentTeamHoleData.cdRaw}</div><div className={`text-3xl font-black ${currentTeamHoleData.diff < 0 ? 'text-red-500' : 'text-gray-800'}`}>{currentTeamHoleData.cdScore}</div></div>
                                         </div>
                                         {currentTeamHoleData.msg && <div className="bg-yellow-50 text-yellow-800 text-xs text-center py-1 border-t border-yellow-100">🔥 {currentTeamHoleData.msg}</div>}
-                                        <div className="bg-gray-50 p-3 text-center border-t"><span className="text-gray-500 text-sm">本洞結算: </span><span className={`text-lg font-bold ml-2 ${currentTeamHoleData.diff !== 0 ? 'text-red-600' : 'text-gray-400'}`}>{currentTeamHoleData.diff > 0 ? 'AB隊' : currentTeamHoleData.diff < 0 ? 'CD隊' : '平手'} {currentTeamHoleData.diff !== 0 && ` 贏 ${Math.abs(currentTeamHoleData.diff)}分 ($${Math.abs(currentTeamHoleData.diff) * data.teamStake})`}</span></div>
+                                        <div className="bg-gray-50 p-3 text-center border-t"><span className="text-gray-500 text-sm">本洞結算: </span><span className={`text-lg font-bold ml-2 ${currentTeamHoleData.diff !== 0 ? 'text-red-600' : 'text-gray-400'}`}>{currentTeamHoleData.diff > 0 ? abName + '隊' : currentTeamHoleData.diff < 0 ? cdName + '隊' : '平手'} {currentTeamHoleData.diff !== 0 && ` 贏 ${Math.abs(currentTeamHoleData.diff)}分 ($${Math.abs(currentTeamHoleData.diff) * data.teamStake})`}</span></div>
                                     </div>
                                 )}
                             </>
@@ -895,6 +900,9 @@
                                                     const teamHole = teamResults.holeDetails[hIdx];
                                                     const winTeam = teamHole?.diff > 0 ? 'AB' : teamHole?.diff < 0 ? 'CD' : null;
                                                     const winDiff = teamHole ? Math.abs(teamHole.diff) : 0;
+                                                    // 判斷是否為平手 (該洞四人皆有成績且 diff = 0)
+                                                    const holeScores = golfScores[hIdx] || [];
+                                                    const isDraw = playerCount === 4 && teamHole && teamHole.diff === 0 && holeScores.slice(0, 4).every(s => s);
                                                     return (
                                                         <tr key={hIdx} className={hIdx === currentHoleIdx ? 'bg-yellow-50' : ''}>
                                                             <td className="p-2 font-bold text-gray-500 sticky left-0 bg-white border-r text-center">{holeNumbers[hIdx]}</td>
@@ -904,8 +912,10 @@
                                                                 <td className="p-2 text-center text-xs">
                                                                     {winTeam ? (
                                                                         <span className={`font-bold px-1.5 py-0.5 rounded ${winTeam === 'AB' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                                            {winTeam} +{winDiff}
+                                                                            {winTeam === 'AB' ? abName : cdName} +{winDiff}
                                                                         </span>
+                                                                    ) : isDraw ? (
+                                                                        <span className="font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">平手</span>
                                                                     ) : <span className="text-gray-300">-</span>}
                                                                 </td>
                                                             )}
@@ -919,7 +929,7 @@
                                                         {names.slice(0, playerCount).map((_, pIdx) => <td key={pIdx} className="p-2 text-center text-gray-800">{golfResults.playerStrokes[pIdx]}</td>)}
                                                         <td className="p-2 text-center text-xs">
                                                             <span className={`font-bold ${abTeamScore > 0 ? 'text-blue-700' : abTeamScore < 0 ? 'text-orange-700' : 'text-gray-400'}`}>
-                                                                {abTeamScore > 0 ? `AB +${abTeamScore}` : abTeamScore < 0 ? `CD +${-abTeamScore}` : '平'}
+                                                                {abTeamScore > 0 ? `${abName} +${abTeamScore}` : abTeamScore < 0 ? `${cdName} +${-abTeamScore}` : '平手'}
                                                             </span>
                                                         </td>
                                                     </tr>
@@ -938,14 +948,14 @@
                                 // 團體對抗：顯示 AB 隊 vs CD 隊總分 + 金額
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className={`flex flex-col items-center p-2 rounded-lg border-l-4 border-blue-500 bg-blue-50 ${abTeamScore > 0 ? 'ring-2 ring-yellow-300' : ''}`}>
-                                        <span className="text-[10px] text-blue-700 font-bold">AB 隊 ({names[0]?.slice(0,2)}+{names[1]?.slice(0,2)})</span>
+                                        <span className="text-[10px] text-blue-700 font-bold">{abName} 隊</span>
                                         <div className="flex items-baseline gap-1">
                                             <span className={`font-black text-lg ${abTeamScore > 0 ? 'text-red-500' : abTeamScore < 0 ? 'text-green-600' : 'text-gray-400'}`}>{abTeamScore > 0 ? '+' : ''}{abTeamScore}分</span>
                                             <span className={`text-xs font-bold ${abTeamMoney > 0 ? 'text-red-500' : abTeamMoney < 0 ? 'text-green-600' : 'text-gray-400'}`}>(${abTeamMoney > 0 ? '+' : ''}{abTeamMoney})</span>
                                         </div>
                                     </div>
                                     <div className={`flex flex-col items-center p-2 rounded-lg border-l-4 border-orange-500 bg-orange-50 ${abTeamScore < 0 ? 'ring-2 ring-yellow-300' : ''}`}>
-                                        <span className="text-[10px] text-orange-700 font-bold">CD 隊 ({names[2]?.slice(0,2)}+{names[3]?.slice(0,2)})</span>
+                                        <span className="text-[10px] text-orange-700 font-bold">{cdName} 隊</span>
                                         <div className="flex items-baseline gap-1">
                                             <span className={`font-black text-lg ${-abTeamScore > 0 ? 'text-red-500' : -abTeamScore < 0 ? 'text-green-600' : 'text-gray-400'}`}>{-abTeamScore > 0 ? '+' : ''}{-abTeamScore}分</span>
                                             <span className={`text-xs font-bold ${cdTeamMoney > 0 ? 'text-red-500' : cdTeamMoney < 0 ? 'text-green-600' : 'text-gray-400'}`}>(${cdTeamMoney > 0 ? '+' : ''}{cdTeamMoney})</span>
